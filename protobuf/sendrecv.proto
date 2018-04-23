@@ -1,0 +1,48 @@
+// имя пакета, в результирующем go-файле это сохраниться
+package sendrecv;
+
+
+message Msg {
+    message Key {
+        oneof key {
+            string keyString = 1;
+            uint64 hashKey = 2;
+        }
+        required uint64 hashvalue = 3;
+        optional uint32 TTL=4;
+        repeated int64 pv = 5;  // versions of parents
+    }
+
+    message KeyValue {
+        required string key = 10;
+        required string value = 11;
+        optional uint32 TTL=12;
+    }
+
+    message DataSet {
+        repeated string value = 21;
+        required bool ordered =22  [default = false];
+    }
+
+    message KeyValueMap {
+        repeated string keys = 30;
+        repeated string values = 31;
+    }
+
+    message SendValues {
+        required string key = 111;
+        optional uint32 TTL=110;
+        oneof value {
+            string strvalue = 112;
+            KeyValueMap mapvalue = 113;
+            DataSet setvalue = 114;
+            DataSet listvalue = 115;
+        }
+    }
+
+    // тип имя_поля = номер_поля
+   // repeated Key        keys = 100;
+    repeated SendValues vals = 101;
+    optional bool reset =102  [default = true];
+    // repeated означает slice
+    }
