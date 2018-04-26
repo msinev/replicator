@@ -1,5 +1,10 @@
 # replicator
-rsync inspired, REDIS optimized, Key-Value based, WAN channels data distribution
+rsync inspired, REDIS optimized, Key-Value based, WAN channels data distribution technology
+
+##status 
+Project is a prototype (alpha-beta) version completed but proper code restructure is required.
+Reading some topics like https://www.ardanlabs.com/blog/2013/08/organizing-code-to-support-go-get.html
+and experimenting on get/build/install functionalities may took some days 
 
 ## Task
 Data distribution from source to consumers could be quite challenging task. It is usually complicated by QOS requirements, limited bandwith for data, need to support for multiple clients and technologies. 
