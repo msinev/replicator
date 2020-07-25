@@ -1,20 +1,19 @@
 package main
 
 import (
-	"net"
 	"bufio"
-	"sync"
 	"fmt"
+	"github.com/msinev/replicator/clientserver"
+	"github.com/msinev/replicator/compressor"
+	"github.com/msinev/replicator/reader"
+	"net"
 	"os"
-	"time"
 	"strconv"
-	"RedisReplica/ClientServer"
-	"RedisReplica/Compressor"
-	"RedisReplica/Reader"
+	"sync"
 	"sync/atomic"
-
-//	"RedisReplica/BlockerChan"
-//	"net/http"
+	"time"
+	//	"RedisReplica/BlockerChan"
+	//	"net/http"
 )
 
 /*
@@ -27,7 +26,7 @@ const activeWaitDeltas=activeSendWaitDeltas+1
 const brokenInitialScanDelta=(activeWaitDeltas+19)%10
 const brokenInitialScanDeltaRecovery=brokenInitialScanDelta+1
 
- */
+*/
 
 /*
 func KVMergerPlain(db int, inc chan Reader.VersionData, ind chan Reader.VersionData,
@@ -63,14 +62,12 @@ const GZIPCompression = 2
 const LZMACompression = 1
 const NoCompression = 0
 
-
-func SocketWriter(client *ClientServer.Client, inCh <-chan Compressor.TheMessage) {
+func SocketWriter(client *clientserver.Client, inCh <-chan compressor.TheMessage) {
 
 	defer log.Info("Socket writer exiting")
 
 	defer client.DoneMsg()
 	defer client.Conn.Close()
-
 
 	count := 0
 	for {
@@ -79,51 +76,51 @@ func SocketWriter(client *ClientServer.Client, inCh <-chan Compressor.TheMessage
 		case <-client.Alive:
 			log.Infof("Exiting socket Writer as chan Alive closed")
 		case block, ok := <-inCh:
-		if (!ok) {
-			log.Info("merged qos channel closed")
-			return
-		}
-
-		ldata := len(block)
-		count++
-		log.Infof("Block %d %d for socket!", count, ldata)
-
-		for ldata > 0 {
-			n, err := client.Conn.Write(block)
-			if (err != nil) {
-				log.Error("error writing socket", err)
+			if !ok {
+				log.Info("merged qos channel closed")
 				return
 			}
-			if (n >= ldata) {
-				break
+
+			ldata := len(block)
+			count++
+			log.Infof("Block %d %d for socket!", count, ldata)
+
+			for ldata > 0 {
+				n, err := client.Conn.Write(block)
+				if err != nil {
+					log.Error("error writing socket", err)
+					return
+				}
+				if n >= ldata {
+					break
+				}
+				block = block[n:]
+				ldata -= n
 			}
-			block = block[n:]
-			ldata -= n
-		}
 		}
 
 	}
 
 }
 
-func ControlMessageLoopForClient(client *ClientServer.Client) { // Kinda client servant main actor
+func ControlMessageLoopForClient(client *clientserver.Client) { // Kinda client servant main actor
 	defer client.Terminate()
 	for {
 		select {
 		case message, ok := <-client.Control:
-			if (ok) {
+			if ok {
 				log.Infof("Control Message %s for ", message.Message)
-				if (message.Message == "done") {
+				if message.Message == "done" {
 					close(client.Alive)
 					message.Done("ok")
 					return
 
-				} else if (message.Message == "sync.sent") {
+				} else if message.Message == "sync.sent" {
 					message.Done("ok")
 				} else {
 					message.Done("unknown")
 				}
-				if (message.Finished != nil) {
+				if message.Finished != nil {
 					message.Finished.Done()
 				}
 			} else {
@@ -137,24 +134,25 @@ func ControlMessageLoopForClient(client *ClientServer.Client) { // Kinda client 
 
 const serverChannelBuffer = 10
 const serverBlockBuffer = 3
-var clietID uint64 =0
 
-func handleServer(tcpconn net.Conn, w *sync.WaitGroup, scan []ScanReader, delta []Reader.DeltaReceiver) {
+var clietID uint64 = 0
+
+func handleServer(tcpconn net.Conn, w *sync.WaitGroup, scan []ScanReader, delta []reader.DeltaReceiver) {
 
 	//defer tcpconn.Close()
-	if (w != nil) {
+	if w != nil {
 		defer w.Done()
 	}
 
 	ldbs := len(DBS)
 
-	id:=atomic.AddUint64(&clietID, 1)
+	id := atomic.AddUint64(&clietID, 1)
 
-	remote:=tcpconn.RemoteAddr().String()
-	clientid:=remote+":"+strconv.FormatUint(id, 16)
+	remote := tcpconn.RemoteAddr().String()
+	clientid := remote + ":" + strconv.FormatUint(id, 16)
 	log.Infof("Serving connection from %s", remote)
 
-	client := new(ClientServer.Client)
+	client := new(clientserver.Client)
 	client.Init(ldbs)
 	client.Conn = tcpconn
 	client.ID = tcpconn.RemoteAddr().String()
@@ -164,46 +162,45 @@ func handleServer(tcpconn net.Conn, w *sync.WaitGroup, scan []ScanReader, delta 
 
 	go ControlMessageLoopForClient(client)
 
-	qosDrains:= client.BlockDrains
+	qosDrains := client.BlockDrains
 
 	for rk, rv := range client.Databases {
-	//	if (DBSPlain[rv] == "+") {
-			log.Debugf("Starting DB %d -> chan", rv)
-			req:= scan[rk].data
-			//controlStop := make(chan int64)
-			stage2 := make(chan Reader.VersionData)
-			stage2a := delta[rk].SubscribeVersions(clientid) // Subscribe to updates
-			stage3 := make(chan Compressor.CompressableData, serverChannelBuffer)
-			stage4 := make(chan Compressor.CompressedData)
-			stage5 := make(chan Compressor.TheMessage, serverBlockBuffer)
+		//	if (DBSPlain[rv] == "+") {
+		log.Debugf("Starting DB %d -> chan", rv)
+		req := scan[rk].data
+		//controlStop := make(chan int64)
+		stage2 := make(chan reader.VersionData)
+		stage2a := delta[rk].SubscribeVersions(clientid) // Subscribe to updates
+		stage3 := make(chan compressor.CompressableData, serverChannelBuffer)
+		stage4 := make(chan compressor.CompressedData)
+		stage5 := make(chan compressor.TheMessage, serverBlockBuffer)
 
-			//		client.KVFullScan[rk] = stage1   // for debug
-			client.KVPartSink[rk] = stage2   // for debug
-			client.MsgSink[rk] = stage3      // for debug
-			client.DataBreakers[rk] = stage4 // for debug
-			client.BlockDrains[rk] = stage5  // for debug
-			qosDrains[rk] = stage5
-/*
-func KVMerger(db int, stop <-chan int64, outrqc chan<- <-chan Reader.VersionData,
-	ind chan Reader.VersionData, outc chan Compressor.CompressableData) {
-			rqVersion
- */
+		//		client.KVFullScan[rk] = stage1   // for debug
+		client.KVPartSink[rk] = stage2   // for debug
+		client.MsgSink[rk] = stage3      // for debug
+		client.DataBreakers[rk] = stage4 // for debug
+		client.BlockDrains[rk] = stage5  // for debug
+		qosDrains[rk] = stage5
+		/*
+		   func KVMerger(db int, stop <-chan int64, outrqc chan<- <-chan Reader.VersionData,
+		   	ind chan Reader.VersionData, outc chan Compressor.CompressableData) {
+		   			rqVersion
+		*/
 		rqVersion := int64(0)
-		if (client.Versions != nil) {
-			rqVersion = client.Versions[rk];
+		if client.Versions != nil {
+			rqVersion = client.Versions[rk]
 		}
 
 		go KVMerger(rk, client.Alive, req, stage2a, stage3, clientid, rqVersion)
 
-			//go Reader.Scan(rv, stage2, &client.DBReader) moved to Init
-			//		go Reader.KVScanAccumulator(rk, stage1,  stage2)
+		//go Reader.Scan(rv, stage2, &client.DBReader) moved to Init
+		//		go Reader.KVScanAccumulator(rk, stage1,  stage2)
 
-		go ClientServer.ServerDataCompressor(client, rk, GZIPCompression, stage3, stage4)
-			go ClientServer.ServerDataStreaming(client, rk, stage4, stage5)
-//		} else {
+		go clientserver.ServerDataCompressor(client, rk, GZIPCompression, stage3, stage4)
+		go clientserver.ServerDataStreaming(client, rk, stage4, stage5)
+		//		} else {
 
-
-	//	}
+		//	}
 		//		go scan(rv, client.kvPartSink[rk])
 
 	}
@@ -212,7 +209,7 @@ func KVMerger(db int, stop <-chan int64, outrqc chan<- <-chan Reader.VersionData
 	client.SocketDrain = qosMerged // for debug
 
 	//go ServerWriter(client, client.socketDrain)
-	const hello ="RRC version 1.0\n\n"
+	const hello = "RRC version 1.0\n\n"
 	//
 	log.Debugf("Writing hello %s", hello)
 	r := bufio.NewReader(tcpconn)
@@ -228,9 +225,9 @@ func KVMerger(db int, stop <-chan int64, outrqc chan<- <-chan Reader.VersionData
 		if lline == 0 || lline == 1 && line[0] == '\n' {
 			break
 		}
-		sline:=string(line)
+		sline := string(line)
 		log.Info("Server reading header: " + string(sline))
-		client.ParseHeader(sline);
+		client.ParseHeader(sline)
 	}
 	log.Debug("Starting socket writer")
 
@@ -244,34 +241,34 @@ func KVMerger(db int, stop <-chan int64, outrqc chan<- <-chan Reader.VersionData
 
 type ScanRequest struct {
 	Version int64
-	Reply   chan<- Reader.VersionData
+	Reply   chan<- reader.VersionData
 }
 
-type  ScanReader struct {
+type ScanReader struct {
 	data chan<- ScanRequest
 }
 
 //var onceDB sync.Once
-const RedisBuf=10
+const RedisBuf = 10
 
-func InitReaders(so []Reader.ServerOptions) ([]ScanReader, []Reader.DeltaReceiver) {
-	var DBDeltaReaders []Reader.DeltaReceiver
+func InitReaders(so []reader.ServerOptions) ([]ScanReader, []reader.DeltaReceiver) {
+	var DBDeltaReaders []reader.DeltaReceiver
 	var DBScanReaders []ScanReader
 
 	redisURL := *so[0].Global.RedisURL
 	//onceDB.Do( func () {
 
-	go Reader.RedisExecutor(redisURL)
+	go reader.RedisExecutor(redisURL)
 
 	ldbs := len(DBS)
 
-	DBDeltaReaders = make([]Reader.DeltaReceiver, ldbs)
+	DBDeltaReaders = make([]reader.DeltaReceiver, ldbs)
 	DBScanReaders = make([]ScanReader, ldbs)
 
 	chandb := make([]chan<- string, ldbs)
 
 	log.Info("Starting REDIS connectors")
-	go Reader.RedisExecutor(redisURL)
+	go reader.RedisExecutor(redisURL)
 	log.Info("Init readers")
 
 	//go ReadVersionDelta(start  <-chan string, out chan <- VersionData, db int )
@@ -279,15 +276,15 @@ func InitReaders(so []Reader.ServerOptions) ([]ScanReader, []Reader.DeltaReceive
 	for r := range DBDeltaReaders {
 		db := DBS[r]
 		_, ok := DBSPlain[db]
-		ver, dbver := Reader.GetVersion(db)
+		ver, dbver := reader.GetVersion(db)
 
-		if (!ok && !dbver) {
+		if !ok && !dbver {
 			log.Errorf("Database %d missing version", db)
-		} else if (dbver) {
+		} else if dbver {
 			log.Infof("Database %d starting version %d", db, ver)
 		}
 		dbt := 0
-		if (ok || !dbver) {
+		if ok || !dbver {
 			log.Panic() // shall we panic ??
 			// TODO fix subscription on plain DBs or missing versions
 			dbt = 1
@@ -298,7 +295,7 @@ func InitReaders(so []Reader.ServerOptions) ([]ScanReader, []Reader.DeltaReceive
 
 	}
 
-	go Reader.RedisSubscriber(redisURL, DBS, DBSPlain, chandb)
+	go reader.RedisSubscriber(redisURL, DBS, DBSPlain, chandb)
 
 	log.Info("Starting scan sunscribers")
 	for k, _ := range DBS {
@@ -306,7 +303,7 @@ func InitReaders(so []Reader.ServerOptions) ([]ScanReader, []Reader.DeltaReceive
 	}
 	log.Info("Readers init done")
 	//})
-return DBScanReaders, DBDeltaReaders
+	return DBScanReaders, DBDeltaReaders
 }
 
 /*
@@ -345,21 +342,21 @@ func InitScanReaderWithNoVersionCheck(dbindex int) (<-chan Reader.VersionData, c
 	return versionchan, controlchan
   }
 */
-func scanReaderWithVersionCheckProcessor(so Reader.ServerOptions, data <-chan ScanRequest) {
+func scanReaderWithVersionCheckProcessor(so reader.ServerOptions, data <-chan ScanRequest) {
 	db := so.DB
- 	defer log.Debugf("Exiting scan for dbID %d", db)
- 	for rq:= range data {
- 		log.Debugf("Performing scan for DB %d for %d", db, rq.Version)
+	defer log.Debugf("Exiting scan for dbID %d", db)
+	for rq := range data {
+		log.Debugf("Performing scan for DB %d for %d", db, rq.Version)
 		if rq.Version > 0 {
-			Reader.Scan(so, rq.Reply)
+			reader.Scan(so, rq.Reply)
 		} else {
-			Reader.ScanVersion(so, uint64(rq.Version), rq.Reply)
+			reader.ScanVersion(so, uint64(rq.Version), rq.Reply)
 		}
 		//log.Debugf("Scan for DB %d complete", db)
 	}
- }
+}
 
-func InitScanReaderWithVersionCheck(so Reader.ServerOptions) *ScanReader {
+func InitScanReaderWithVersionCheck(so reader.ServerOptions) *ScanReader {
 
 	//	dbnumber:=so.DB
 	//ldbs := len(DBS)
@@ -370,14 +367,13 @@ func InitScanReaderWithVersionCheck(so Reader.ServerOptions) *ScanReader {
 
 	dataChan := make(chan ScanRequest)
 	go scanReaderWithVersionCheckProcessor(so, dataChan)
-//	rqChan:=make(chan<- uint64)
+	//	rqChan:=make(chan<- uint64)
 
 	log.Info("Initializing readers initialized")
 
 	return &ScanReader{data: dataChan}
 
 }
-
 
 /* InitReader dublicate
 func InitVersionScanReaders() []Reader.DeltaReceiver {
@@ -413,7 +409,7 @@ func InitVersionScanReaders() []Reader.DeltaReceiver {
 }
 */
 
-func mainServerTCPLoop(so []Reader.ServerOptions, bind string, waitTermination bool) {
+func mainServerTCPLoop(so []reader.ServerOptions, bind string, waitTermination bool) {
 	// Listen for incoming connections.
 	var counter uint32
 	l, err := net.Listen(CONN_TYPE_TCP, bind)
@@ -432,7 +428,7 @@ func mainServerTCPLoop(so []Reader.ServerOptions, bind string, waitTermination b
 			select {
 			case sig, ok := <-sigs:
 
-				if (!ok) {
+				if !ok {
 					return
 				}
 
@@ -445,12 +441,11 @@ func mainServerTCPLoop(so []Reader.ServerOptions, bind string, waitTermination b
 		}
 	}()
 
-
 	fmt.Println("Listening on " + bind)
 	var wg sync.WaitGroup
 
 	//readers:=InitScanReadersWithVersionCheck()
-	scan, delta := InitReaders(so);
+	scan, delta := InitReaders(so)
 	for {
 		// Listen for an incoming connection.
 		conn, err := l.Accept()
@@ -459,7 +454,7 @@ func mainServerTCPLoop(so []Reader.ServerOptions, bind string, waitTermination b
 
 		if err != nil {
 			log.Errorf("Socket returned error: %s", err.Error())
-			if (waitTermination) {
+			if waitTermination {
 
 				go func() {
 					time.Sleep(time.Second * 10)
@@ -472,7 +467,7 @@ func mainServerTCPLoop(so []Reader.ServerOptions, bind string, waitTermination b
 		}
 		log.Infof("Connected to %s (connection %d)", conn.RemoteAddr(), counter)
 		// Handle connections in a new goroutine
-  		go handleServer(conn, &wg, scan,delta)
+		go handleServer(conn, &wg, scan, delta)
 
 	}
 

@@ -2,7 +2,7 @@ package reader
 
 import (
 	"github.com/garyburd/redigo/redis"
-	"github.com/msinev/replicator/sendrecv"
+	"github.com/msinev/replicator/protobuf/sendrecv"
 )
 
 func retriveString(keys string, conn redis.Conn) error {
