@@ -45,30 +45,34 @@ This project is focusing on universal key value based replication solution.
  * Add to batch
  * Extract and apply as directed by server if batch is completed by current block 
 
+###Redis keys versioning
+
+
+
 ### Redis replication utility
 
 Programm meant to replicate data one to many REDIS instances. 
 Over WAN link with QOS and Compression
-
+```
 Usage of REPLICATOR:
-  -TLSCA string
+  -TLSCA path
         Certificate authority (default "ca.pem")
-  -TLSCRT string
+  -TLSCRT path
         X.509 Certificate (default "certificate.crt,certificate.key")
-  -databases string
+  -databases id list
         List of databases like 5,0,3,8
-  -hub string
+  -hub ip:port
         Server address (default ":3333")
   -lv
         Ignore source version - create version chain locally
   -nowait
         Don't wait for client requests termination
-  -plaindb string
+  -plaindb id list 
         List of version less databases like 3,8
-  -redis string
+  -redis ip:port
         Redis address list (default "127.0.0.1:6379")
   -sentinel
         Use sentinel
   -server
         Listen for requests
-    
+  ```  
