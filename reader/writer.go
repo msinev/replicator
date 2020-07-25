@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"github.com/garyburd/redigo/redis"
 	"github.com/msinev/replicator/pool"
-	"github.com/msinev/replicator/sendrecv"
+	"github.com/msinev/replicator/protobuf/sendrecv"
 	"strconv"
 	"sync"
 )
