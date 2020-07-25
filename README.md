@@ -73,6 +73,6 @@ Usage of REPLICATOR:
         Redis address list (default "127.0.0.1:6379")
   -sentinel
         Use sentinel
-  -server
+  -server switch client and server mode
         Listen for requests
   ```  
