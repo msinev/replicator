@@ -12,7 +12,7 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
-	//	"RedisReplica/BlockerChan"
+	//	"RedisReplica/blockaggregator"
 	//	"net/http"
 )
 
@@ -324,7 +324,7 @@ func InitScanReaderWithNoVersionCheck(dbindex int) (<-chan Reader.VersionData, c
 
 //		chandb[k]=make(chan string, RedisBuf)
 //		chanblockdb[k]=make(chan []string, RedisBuf)
-	go BlockerChan.UniqueBlocker(rs, keyblock)
+	go blockaggregator.UniqueBlocker(rs, keyblock)
 	//	go
 
 	go Reader.KVVersionGenerator(dbindex, kvdata, versionchan)
@@ -363,7 +363,7 @@ func InitScanReaderWithVersionCheck(so reader.ServerOptions) *ScanReader {
 	//chandb:=make([]chan string, ldbs)
 	//chanblockdb:=make([]chan []string, ldbs)
 
-	//go BlockerChan.UniqueBlocker(chandb[k], chanblockdb[k])
+	//go blockaggregator.UniqueBlocker(chandb[k], chanblockdb[k])
 
 	dataChan := make(chan ScanRequest)
 	go scanReaderWithVersionCheckProcessor(so, dataChan)
@@ -385,7 +385,7 @@ func InitVersionScanReaders() []Reader.DeltaReceiver {
 	for k,_:= range DBS {
 		chandb[k]=make(chan string, RedisBuf)
 		chanblockdb[k]=make(chan []string, RedisBuf)
-		go BlockerChan.UniqueBlocker(chandb[k], chanblockdb[k] )
+		go blockaggregator.UniqueBlocker(chandb[k], chanblockdb[k] )
 
 	}
 
