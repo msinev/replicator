@@ -1,8 +1,8 @@
 package main
 
 import (
-	"github.com/msinev/ML/pushweb/reader"
 	"github.com/msinev/replicator/control"
+	"github.com/msinev/replicator/webpusher/reader"
 	"sync"
 	"time"
 )
