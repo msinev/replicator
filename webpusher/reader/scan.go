@@ -4,15 +4,13 @@ import (
 	"github.com/garyburd/redigo/redis"
 	"github.com/msinev/replicator/pool"
 	"strconv"
-	"strings"
 	"sync"
 	//	"github.com/go-kit/kit/util/conn"
 	"time"
 )
 
 type GlobalOptions struct {
-	LocalVersion bool
-	RedisURL     *string
+	RedisURL *string
 }
 
 type ServerOptions struct {
@@ -166,8 +164,6 @@ func ReadVersionDelta(so ServerOptions, start <-chan string, out chan<- VersionD
 				return err
 			}
 
-			addVersionKeys := !so.Global.LocalVersion
-
 			nextVersion, err := redis.Uint64(conn.Do("GET", versionKey))
 			log.Noticef("Current next version %d", nextVersion)
 			if nowVersion < nextVersion {
@@ -176,9 +172,6 @@ func ReadVersionDelta(so ServerOptions, start <-chan string, out chan<- VersionD
 				existingKeys := make([]RedisKV, 0)
 				for nowVersion < nextVersion {
 					//existingKeysCount:=len(existingKeyIndexes)
-					if addVersionKeys {
-						newKeys[versionKey] = nextVersion
-					}
 					versionListTTL, err := redis.Int(conn.Do("TTL", versionKeyList+strconv.FormatUint(fromVersion, 10)))
 					if err != nil {
 						return err
@@ -190,9 +183,6 @@ func ReadVersionDelta(so ServerOptions, start <-chan string, out chan<- VersionD
 
 					for i := nowVersion + 1; i <= nextVersion; i++ {
 						lrKey := versionKeyList + strconv.FormatUint(i, 10)
-						if addVersionKeys {
-							newKeys[lrKey] = i
-						}
 						err := conn.Send("LRANGE", lrKey, 0, 10000)
 						log.Debugf("Send get keys for version %d", i)
 						if err != nil {
@@ -503,8 +493,6 @@ func ScanVersion(so ServerOptions, version uint64, out chan<- VersionData) {
 			return err
 		}
 
-		addVersionKeys := !so.Global.LocalVersion
-
 		nextVersion, err := redis.Uint64(conn.Do("GET", versionKey))
 		log.Noticef("Current next version %d", nextVersion)
 		if nowVersion < nextVersion {
@@ -514,9 +502,6 @@ func ScanVersion(so ServerOptions, version uint64, out chan<- VersionData) {
 			existingKeys := make([]RedisKV, 0)
 			for nowVersion < nextVersion {
 				//existingKeysCount:=len(existingKeyIndexes)
-				if addVersionKeys {
-					newKeys[versionKey] = nextVersion
-				}
 
 				vlKey := versionKeyList + strconv.FormatUint(fromVersion, 10)
 				versionListTTL, err := redis.Int(conn.Do("TTL", vlKey))
@@ -531,9 +516,6 @@ func ScanVersion(so ServerOptions, version uint64, out chan<- VersionData) {
 
 				for i := nowVersion + 1; i <= nextVersion; i++ {
 					lrKey := versionKeyList + strconv.FormatUint(i, 10)
-					if addVersionKeys {
-						newKeys[lrKey] = i
-					}
 					err := conn.Send("LRANGE", lrKey, 0, 10000)
 					log.Debugf("Send get keys for version %d", i)
 					if err != nil {
@@ -638,9 +620,6 @@ func Scan(so ServerOptions, out chan<- VersionData) {
 		iter := 0
 		var data []RedisKV
 
-		filterPrefix := versionKey
-		flp := len(filterPrefix)
-
 		for {
 
 			//log.Printf("Sending scan %d \n" , iter)
@@ -657,16 +636,6 @@ func Scan(so ServerOptions, out chan<- VersionData) {
 				lkeys := len(keys)
 				log.Debugf("SCAN DB %d ITER %d -> %d KEYS %d", db, olditer, iter, lkeys)
 				rkeys := keys
-				if so.Global.LocalVersion {
-					rkeys = make([]string, 0, lkeys)
-					for _, v := range keys {
-						if !(strings.HasPrefix(v, filterPrefix) && (len(v) == flp || v[flp] == ':')) {
-							rkeys = append(rkeys, v)
-						}
-					}
-					log.Warningf("DB %s scan filered version keys %d -> %d", db, lkeys, len(rkeys))
-
-				}
 
 				err, nextdata := retrive(rkeys, conn)
 				data = append(data, nextdata...)

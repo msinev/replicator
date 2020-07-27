@@ -3,6 +3,8 @@ package main
 import (
 	"flag"
 	"github.com/codebear4/ttlcache"
+	"github.com/msinev/replicator/pool"
+	"github.com/msinev/replicator/webpusher/reader"
 	"github.com/op/go-logging"
 )
 
@@ -51,6 +53,16 @@ func main() {
 	if !dbCheck() {
 		log.Critical("Database check failed.")
 		return
+	}
+	log.Info("Starting REDIS pool")
+	go pool.RedisExecutor(*strRedis)
+	gopt := reader.GlobalOptions{
+		RedisURL: strRedis,
+		//ForceCheckVersion: !bGetOrElse(noVersion, false),
+	}
+	so := make([]reader.ServerOptions, len(DBS))
+	for k, _ := range so {
+		so[k] = reader.ServerOptions{Global: &gopt, Index: k, DB: DBS[k]}
 	}
 
 }
