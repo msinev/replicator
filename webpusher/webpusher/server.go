@@ -1,4 +1,4 @@
-package clientserver
+package main
 
 import (
 	"bufio"
@@ -6,8 +6,7 @@ import (
 	"github.com/cespare/xxhash"
 	"github.com/msinev/replicator/compressor"
 	"github.com/msinev/replicator/control"
-	"github.com/msinev/replicator/reader"
-	"github.com/op/go-logging"
+	"github.com/msinev/replicator/webpusher/reader"
 	"net"
 	"strconv"
 	"strings"
@@ -16,14 +15,12 @@ import (
 	"time"
 )
 
-var log = logging.MustGetLogger("replicator.CSBLOCKS")
-
-type ClientStats struct {
+type ClientStatsBin struct {
 	Produced   []int64
 	Compressed []int64
 }
 
-func (client *ClientStats) Init(ldbs int) {
+func (client *ClientStatsBin) Init(ldbs int) {
 	//	client.SyncVolume = make([]int64, ldbs)
 
 	client.Produced = make([]int64, ldbs)
@@ -69,7 +66,7 @@ type Client struct {
 	TSSynced       []time.Time
 	TSLatestUpdate []time.Time
 	//	SyncVolume []int64
-	Stats ClientStats
+	Stats ClientStatsBin
 }
 
 func (client *Client) DoneMsg() {

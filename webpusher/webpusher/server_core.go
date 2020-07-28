@@ -62,7 +62,7 @@ const GZIPCompression = 2
 const LZMACompression = 1
 const NoCompression = 0
 
-func SocketWriter(client *clientserver.Client, inCh <-chan compressor.TheMessage) {
+func SocketWriter(client *Client, inCh <-chan compressor.TheMessage) {
 
 	defer log.Info("Socket writer exiting")
 
@@ -103,7 +103,7 @@ func SocketWriter(client *clientserver.Client, inCh <-chan compressor.TheMessage
 
 }
 
-func ControlMessageLoopForClient(client *clientserver.Client) { // Kinda client servant main actor
+func ControlMessageLoopForClient(client *Client) { // Kinda client servant main actor
 	defer client.Terminate()
 	for {
 		select {
@@ -152,7 +152,7 @@ func handleServer(tcpconn net.Conn, w *sync.WaitGroup, scan []ScanReader, delta 
 	clientid := remote + ":" + strconv.FormatUint(id, 16)
 	log.Infof("Serving connection from %s", remote)
 
-	client := new(clientserver.Client)
+	client := new(Client)
 	client.Init(ldbs)
 	client.Conn = tcpconn
 	client.ID = tcpconn.RemoteAddr().String()
@@ -196,8 +196,8 @@ func handleServer(tcpconn net.Conn, w *sync.WaitGroup, scan []ScanReader, delta 
 		//go Reader.Scan(rv, stage2, &client.DBReader) moved to Init
 		//		go Reader.KVScanAccumulator(rk, stage1,  stage2)
 
-		go clientserver.ServerDataCompressor(client, rk, GZIPCompression, stage3, stage4)
-		go clientserver.ServerDataStreaming(client, rk, stage4, stage5)
+		go ServerDataCompressor(client, rk, GZIPCompression, stage3, stage4)
+		go ServerDataStreaming(client, rk, stage4, stage5)
 		//		} else {
 
 		//	}
