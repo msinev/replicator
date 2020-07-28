@@ -16,9 +16,11 @@ const (
 	HTTP_HOST = "127.0.0.1"
 	HTTP_PORT = "8079"
 	//
-	URL_SYNC   = "/data/full"
-	URL_SOCKET = "/data/socket"
-	URL_DELTA  = "/data/delta"
+	URL_BASE=   "/data"
+	URL_SYNC    = URL_BASE+"/full"
+	URL_SOCKET  = URL_BASE+"/socket"
+	URL_OPTIONS = URL_BASE+"/options"
+	URL_DELTA   = URL_BASE+"/delta"
 )
 
 var Sessions map[string]*WebClient
