@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"github.com/gorilla/mux"
 	"github.com/msinev/replicator/webpusher/reader"
 	"net/http"
@@ -12,30 +11,26 @@ import (
 	"time"
 )
 
-var httpSrv     *http.Server
-var httpStoped  sync.WaitGroup
+var httpSrv *http.Server
+var httpStoped sync.WaitGroup
 var httpStopper sync.Once
 
-
 func mainServerHTTPLoop(so []reader.ServerOptions, bind string, waitTermination bool) {
-	addr:=*serverAddress
+	addr := *serverAddress
 	log.Info("Listening http at " + addr)
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt)
 
-
+	scansrc, deltasrc := InitReaders(so)
 	r := mux.NewRouter()
 	r.HandleFunc("/", reply)
-	r.HandleFunc(URL_SYNC, 	func (w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		scan, delta := InitReaders(so)
-		fmt.Fprintf(w, "[]")
-		})
+	r.HandleFunc(URL_SYNC, func(w http.ResponseWriter, r *http.Request) {
+		fullCopy(w, r, scansrc, deltasrc)
+	})
 
 	r.HandleFunc(URL_DELTA, delta)
 	r.HandleFunc(URL_SOCKET, sockets)
 	r.HandleFunc(URL_OPTIONS, options)
-
 
 	srv := &http.Server{Addr: addr, Handler: r}
 
@@ -59,6 +54,7 @@ func mainServerHTTPLoop(so []reader.ServerOptions, bind string, waitTermination 
 		log.Fatal("ListenAndServe: ", err)
 	}
 }
+
 /*
 {
 	// Listen for incoming connections.
@@ -137,5 +133,3 @@ func mainServerHTTPLoop(so []reader.ServerOptions, bind string, waitTermination 
 	}
 }
 */
-
-

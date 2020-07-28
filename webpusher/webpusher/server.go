@@ -4,10 +4,10 @@ import (
 	"bufio"
 	"encoding/json"
 	"github.com/cespare/xxhash"
+	"github.com/gorilla/websocket"
 	"github.com/msinev/replicator/compressor"
 	"github.com/msinev/replicator/control"
 	"github.com/msinev/replicator/webpusher/reader"
-	"net"
 	"strconv"
 	"strings"
 	"sync"
@@ -33,12 +33,12 @@ type Client struct {
 	// static
 	Databases []int
 	Versions  []int64
-	Conn      net.Conn
+	Conn      websocket.Conn
 	Reader    *bufio.Reader
 	Conntype  string
 	ID        string
 
-	Info           map[string]string
+	//Info           map[string]string
 	Handshake      map[string]string
 	terminateDo    sync.Once
 	TerminateChain func()
@@ -48,10 +48,9 @@ type Client struct {
 	//  static pipeline - no need to keep just for debugging
 	//-- remove channels from client's structure after debugging
 	//	KVFullScan   []chan []Reader.RedisKV
-	KVPartSink   []chan reader.VersionData
-	MsgSink      []chan compressor.CompressableData
-	DataBreakers []chan compressor.CompressedData
-	BlockDrains  []chan compressor.TheMessage
+	KVPartSink  []chan reader.VersionData
+	MsgSink     []chan compressor.CompressableData
+	BlockDrains []chan compressor.TheMessage
 
 	SocketDrain <-chan compressor.TheMessage
 	//

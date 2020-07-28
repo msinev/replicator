@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"github.com/msinev/replicator/compressor"
 	"github.com/msinev/replicator/protobuf/sendrecv"
-	"github.com/msinev/replicator/reader"
+	"github.com/msinev/replicator/webpusher/reader"
 	"sort"
 	"time"
 )

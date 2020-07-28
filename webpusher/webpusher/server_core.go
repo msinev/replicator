@@ -3,7 +3,6 @@ package main
 import (
 	"bufio"
 	"fmt"
-	"github.com/msinev/replicator/clientserver"
 	"github.com/msinev/replicator/compressor"
 	"github.com/msinev/replicator/reader"
 	"net"
@@ -409,6 +408,7 @@ func InitVersionScanReaders() []Reader.DeltaReceiver {
 }
 */
 
+/*
 func mainServerTCPLoop(so []reader.ServerOptions, bind string, waitTermination bool) {
 	// Listen for incoming connections.
 	var counter uint32
@@ -471,4 +471,4 @@ func mainServerTCPLoop(so []reader.ServerOptions, bind string, waitTermination b
 
 	}
 
-}
+}*/
