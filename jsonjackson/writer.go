@@ -159,3 +159,17 @@ func (w *JSONWriter) Float(i float64) *JSONWriter {
 func (w *JSONWriter) BeginArrayField(s string) *JSONWriter {
 	return w.Field(s).BeginArray()
 }
+
+// convenience methods
+
+func (w *JSONWriter) BeginObjectField(s string) *JSONWriter {
+	return w.Field(s).BeginObject()
+}
+
+func (w *JSONWriter) IntField(s string, i int64) *JSONWriter {
+	return w.Field(s).Int(i)
+}
+
+func (w *JSONWriter) StrField(s string, v string) *JSONWriter {
+	return w.Field(s).Str(v)
+}
