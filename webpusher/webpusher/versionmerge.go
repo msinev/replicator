@@ -3,7 +3,6 @@ package main
 import (
 	"bytes"
 	"github.com/msinev/replicator/compressor"
-	"github.com/msinev/replicator/protobuf/sendrecv"
 	"github.com/msinev/replicator/webpusher/reader"
 	"sort"
 	"time"
@@ -82,10 +81,20 @@ func AppendVersionWithSort(s []reader.VersionData, f reader.VersionData) []reade
 	return append(append(s[0:i], f), s[i+1:]...)
 }
 
-func getCompressableSnapshot(vdata reader.VersionData, isent uint64) (*compressor.CompressableData, uint64) {
+//mergeData
+//vdata reader.VersionData
+type JSONVersionData struct {
+
+Version     uint64
+DeltaFor    uint64
+JSONData []byte
+}
+
+func getCompressableSnapshot(vdata reader.VersionData, isent uint64) (*JSONVersionData, uint64) {
 	if vdata.Version <= isent {
 		return nil, isent
-	}
+		}
+
 	kvbuf := make([]*sendrecv.Msg_SendValues, 0, 20000)
 
 	for _, c := range vdata.VersionData {
@@ -97,8 +106,7 @@ func getCompressableSnapshot(vdata reader.VersionData, isent uint64) (*compresso
 
 	log.Infof("Uncompressed length %d!", bbuf.Len())
 
-	return (&compressor.CompressableData{
-		Datatype: 0,
+	return (
 		Data:     bbuf.Bytes(),
 	}), vdata.Version
 }

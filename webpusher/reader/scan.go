@@ -3,6 +3,7 @@ package reader
 import (
 	"github.com/garyburd/redigo/redis"
 	"github.com/msinev/replicator/pool"
+	"io"
 	"strconv"
 	"sync"
 	//	"github.com/go-kit/kit/util/conn"
@@ -109,6 +110,24 @@ func uselessTTL(ttl int64) bool {
 
 const versionKey = "version"
 const versionKeyList = "version:"
+
+func (val RedisKV) Write(i io.Writer) {
+	if val.ListValue == nil {
+		if val.ListKeys == nil {
+			i.Write()
+		} else {
+
+		}
+	} else {
+		if val.ListKeys == nil {
+
+		} else {
+
+		}
+	}
+	i.Write()
+
+}
 
 func ReadVersionDelta(so ServerOptions, start <-chan string, out chan<- VersionData, initVersion uint64) { //Delta reader
 	db := so.DB
