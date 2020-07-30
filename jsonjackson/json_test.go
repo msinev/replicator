@@ -28,3 +28,11 @@ func TestJsonString(t *testing.T) {
 
 	}
 }
+func TestJsonBuild1(t *testing.T) {
+	var b bytes.Buffer
+	jw := NewBuilder(&b)
+	jw.BeginObject().Field("X").Int(10).Field("Y").Str("Z").BeginArrayField("A1").Int(1).Int(2)
+
+	jw.CloseAll()
+	t.Log(b.String())
+}
