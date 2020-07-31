@@ -2,15 +2,14 @@ package main
 
 import (
 	"bufio"
-	"fmt"
+
 	"github.com/msinev/replicator/compressor"
 	"github.com/msinev/replicator/reader"
 	"net"
-	"os"
+
 	"strconv"
 	"sync"
 	"sync/atomic"
-	"time"
 	//	"RedisReplica/blockaggregator"
 	//	"net/http"
 )

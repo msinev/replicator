@@ -2,8 +2,9 @@ package reader
 
 import (
 	"github.com/garyburd/redigo/redis"
+	"github.com/msinev/replicator/jsonjackson"
 	"github.com/msinev/replicator/pool"
-	"io"
+
 	"strconv"
 	"sync"
 	//	"github.com/go-kit/kit/util/conn"
@@ -111,12 +112,17 @@ func uselessTTL(ttl int64) bool {
 const versionKey = "version"
 const versionKeyList = "version:"
 
-func (val RedisKV) Write(i io.Writer) {
+func Write(val RedisKV, i *jsonjackson.JSONWriter) {
+	i.BeginObject().StrField("k", val.Key).Field("v")
 	if val.ListValue == nil {
 		if val.ListKeys == nil {
-			i.Write()
+			i.NulStr(val.Value)
 		} else {
-
+			i.BeginObject().StrField("k", val.Key).Field("v").BeginArray()
+			for _, v := range val.ListKeys {
+				i.Str(v)
+			}
+			i.EndArray().IntField("t", 1)
 		}
 	} else {
 		if val.ListKeys == nil {
@@ -125,8 +131,8 @@ func (val RedisKV) Write(i io.Writer) {
 
 		}
 	}
-	i.Write()
 
+	i.EndObject()
 }
 
 func ReadVersionDelta(so ServerOptions, start <-chan string, out chan<- VersionData, initVersion uint64) { //Delta reader

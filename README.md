@@ -45,6 +45,23 @@ This project is focusing on universal key value based replication solution.
  * Add to batch
  * Extract and apply as directed by server if batch is completed by current block 
 
+
+### Dependencies
+```shell script
+ go get "github.com/cespare/xxhash"
+ go get "github.com/codebear4/ttlcache"
+ go get "github.com/cxuhua/lzma"
+ go get "github.com/emirpasic/gods/maps/treemap"
+ go get "github.com/emirpasic/gods/sets/treeset"
+ go get "github.com/golang/protobuf/proto"
+ go get "github.com/gorilla/mux"
+ go get "github.com/gorilla/websocket"
+ go get "github.com/op/go-logging"
+
+```
+ 
+
+
 ###Redis keys versioning
 
 
