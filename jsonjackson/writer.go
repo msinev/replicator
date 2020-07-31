@@ -152,7 +152,7 @@ func (w *JSONWriter) Int(i int64) *JSONWriter {
 }
 
 func (w *JSONWriter) Float(i float64) *JSONWriter {
-	w.checknext(true).Write([]byte(strconv.FormatFloat(i, 'E', -1, 64)))
+	w.checknext(true).Write([]byte(strconv.FormatFloat(i, 'G', -1, 64)))
 	return w
 }
 
