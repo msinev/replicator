@@ -18,6 +18,8 @@ var escK = []byte("\\\"")
 var preK = []byte("\"")
 
 var preNull = []byte("null")
+var preTrue = []byte("true")
+var preFalse = []byte("false")
 
 var log = logging.MustGetLogger("JSON.SAX")
 
@@ -132,6 +134,17 @@ func (w *JSONWriter) Str(s string) *JSONWriter {
 	return w.checknext(true).writeStr(s)
 }
 
+func (w *JSONWriter) Bool(s bool) *JSONWriter {
+	w.checknext(true)
+	if s {
+		w.Write(preTrue)
+	} else {
+		w.Write(preFalse)
+	}
+	return w
+
+}
+
 func (w *JSONWriter) Nul() *JSONWriter {
 	w.checknext(true).Write(preNull)
 	return w
@@ -172,4 +185,8 @@ func (w *JSONWriter) IntField(s string, i int64) *JSONWriter {
 
 func (w *JSONWriter) StrField(s string, v string) *JSONWriter {
 	return w.Field(s).Str(v)
+}
+
+func (w *JSONWriter) BoolField(s string, b bool) *JSONWriter {
+	return w.Field(s).Bool(b)
 }
