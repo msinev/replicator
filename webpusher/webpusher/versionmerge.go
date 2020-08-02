@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+
 	"github.com/msinev/replicator/compressor"
 	"github.com/msinev/replicator/webpusher/reader"
 	"sort"
@@ -84,31 +85,32 @@ func AppendVersionWithSort(s []reader.VersionData, f reader.VersionData) []reade
 //mergeData
 //vdata reader.VersionData
 type JSONVersionData struct {
-
-Version     uint64
-DeltaFor    uint64
-JSONData []byte
+	Version  uint64
+	DeltaFor uint64
+	JSONData []byte
 }
 
 func getCompressableSnapshot(vdata reader.VersionData, isent uint64) (*JSONVersionData, uint64) {
 	if vdata.Version <= isent {
 		return nil, isent
-		}
+	}
 
-	kvbuf := make([]*sendrecv.Msg_SendValues, 0, 20000)
+	kvbuf := make([]RedisKV, 0, 20000)
 
 	for _, c := range vdata.VersionData {
 		kvbuf = append(kvbuf, c)
 	}
-	vMsg := sendrecv.Msg{Vals: kvbuf}
+
 	bbuf := new(bytes.Buffer)
-	writePB(&vMsg, bbuf)
+	writeJSONKV(&vMsg, bbuf)
 
 	log.Infof("Uncompressed length %d!", bbuf.Len())
 
-	return (
-		Data:     bbuf.Bytes(),
-	}), vdata.Version
+	return &JSONVersionData{
+		Version:  0,
+		DeltaFor: 1,
+		JSONData: bbuf.Bytes(),
+	}, vdata.Version
 }
 
 var TFALSE = false

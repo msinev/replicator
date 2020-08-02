@@ -3,7 +3,6 @@ package main
 import (
 	"bufio"
 
-	"github.com/msinev/replicator/compressor"
 	"github.com/msinev/replicator/reader"
 	"net"
 
@@ -56,11 +55,11 @@ func loadMsg(redis int) (*sendrecv.Msg) {
 }
 */
 
-const GZIPCompression = 2
-const LZMACompression = 1
+//const GZIPCompression = 2
+//const LZMACompression = 1
 const NoCompression = 0
 
-func SocketWriter(client *Client, inCh <-chan compressor.TheMessage) {
+func SocketWriter(client *WebClient, inCh <-chan *JSONVersionData) {
 
 	defer log.Info("Socket writer exiting")
 
@@ -169,9 +168,9 @@ func handleServer(tcpconn net.Conn, w *sync.WaitGroup, scan []ScanReader, delta 
 		//controlStop := make(chan int64)
 		stage2 := make(chan reader.VersionData)
 		stage2a := delta[rk].SubscribeVersions(clientid) // Subscribe to updates
-		stage3 := make(chan compressor.CompressableData, serverChannelBuffer)
-		stage4 := make(chan compressor.CompressedData)
-		stage5 := make(chan compressor.TheMessage, serverBlockBuffer)
+		//stage3 := make(chan compressor.CompressableData, serverChannelBuffer)
+		//stage4 := make(chan compressor.CompressedData)
+		//stage5 := make(chan compressor.TheMessage, serverBlockBuffer)
 
 		//		client.KVFullScan[rk] = stage1   // for debug
 		client.KVPartSink[rk] = stage2   // for debug

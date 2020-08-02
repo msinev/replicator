@@ -50,9 +50,9 @@ type Client struct {
 	//	KVFullScan   []chan []Reader.RedisKV
 	KVPartSink  []chan reader.VersionData
 	MsgSink     []chan compressor.CompressableData
-	BlockDrains []chan compressor.TheMessage
+	//BlockDrains []chan compressor.TheMessage
 
-	SocketDrain <-chan compressor.TheMessage
+	//SocketDrain <-chan compressor.TheMessage
 	//
 	//VerSyncAlert []chan int64
 

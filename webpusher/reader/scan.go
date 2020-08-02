@@ -122,12 +122,21 @@ func Write(val RedisKV, i *jsonjackson.JSONWriter) {
 			for _, v := range val.ListKeys {
 				i.Str(v)
 			}
-			i.EndArray().IntField("t", 1)
+			i.EndArray().BoolField("s", true)
 		}
 	} else {
 		if val.ListKeys == nil {
+			i.BeginObject().StrField("k", val.Key).Field("v").BeginArray()
+			for _, v := range val.ListValue {
+				i.Str(v)
+			}
+			i.EndArray().BoolField("s", false)
 
 		} else {
+			i.BeginObject().StrField("k", val.Key).Field("v").BeginArray()
+			for ind, v := range val.ListKeys {
+				i.BeginArray().Str(v).Str(val.ListValue[ind]).EndArray()
+			}
 
 		}
 	}
