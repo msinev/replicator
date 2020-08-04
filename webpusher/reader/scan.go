@@ -112,30 +112,30 @@ func uselessTTL(ttl int64) bool {
 const versionKey = "version"
 const versionKeyList = "version:"
 
-func Write(val RedisKV, i *jsonjackson.JSONWriter) {
-	i.BeginObject().StrField("k", val.Key).Field("v")
-	if val.ListValue == nil {
-		if val.ListKeys == nil {
-			i.NulStr(val.Value)
+func (kv *KVData) Write(i *jsonjackson.JSONWriter) {
+	i.BeginObject().StrField("k", kv.Key).Field("v")
+	if kv.ListValue == nil {
+		if kv.ListKeys == nil {
+			i.NulStr(kv.Value)
 		} else {
-			i.BeginObject().StrField("k", val.Key).Field("v").BeginArray()
-			for _, v := range val.ListKeys {
+			i.BeginObject().StrField("k", kv.Key).Field("v").BeginArray()
+			for _, v := range kv.ListKeys {
 				i.Str(v)
 			}
 			i.EndArray().BoolField("s", true)
 		}
 	} else {
-		if val.ListKeys == nil {
-			i.BeginObject().StrField("k", val.Key).Field("v").BeginArray()
-			for _, v := range val.ListValue {
+		if kv.ListKeys == nil {
+			i.BeginObject().StrField("k", kv.Key).Field("v").BeginArray()
+			for _, v := range kv.ListValue {
 				i.Str(v)
 			}
 			i.EndArray().BoolField("s", false)
 
 		} else {
-			i.BeginObject().StrField("k", val.Key).Field("v").BeginArray()
-			for ind, v := range val.ListKeys {
-				i.BeginArray().Str(v).Str(val.ListValue[ind]).EndArray()
+			i.BeginObject().StrField("k", kv.Key).Field("v").BeginArray()
+			for ind, v := range kv.ListKeys {
+				i.BeginArray().Str(v).Str(kv.ListValue[ind]).EndArray()
 			}
 
 		}

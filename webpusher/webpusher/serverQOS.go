@@ -1,26 +1,26 @@
 package main
 
-import "github.com/msinev/replicator/compressor"
+type TheMessage = JSONVersionData
 
-func QOSBuilder(mc []chan compressor.TheMessage) <-chan compressor.TheMessage {
+func QOSBuilder(mc []chan TheMessage) <-chan TheMessage {
 	lmc := len(mc)
 
 	if lmc == 1 {
 		return mc[0]
 	} else if lmc == 2 {
-		out := make(chan compressor.TheMessage)
+		out := make(chan TheMessage)
 		go QOSScheduler2(mc[1], mc[0], out)
 		return out
 	} else if lmc == 3 {
-		out := make(chan compressor.TheMessage)
+		out := make(chan TheMessage)
 		go QOSScheduler3(mc[2], mc[1], mc[0], out)
 		return out
 	} else if lmc == 4 {
-		out := make(chan compressor.TheMessage)
+		out := make(chan TheMessage)
 		go QOSScheduler4(mc[3], mc[2], mc[1], mc[0], out)
 		return out
 	} else if lmc > 4 {
-		out := make(chan compressor.TheMessage)
+		out := make(chan TheMessage)
 		go QOSScheduler4(QOSBuilder(mc[lmc/2+1:]), QOSBuilder(mc[2:lmc/2+1]), mc[1], mc[0], out)
 		return out
 	}
@@ -40,7 +40,7 @@ func (c *Client) CreateQOS() chan Compressor.TheMessage {
 }
 */
 
-func QOSScheduler1(QOSRT <-chan compressor.TheMessage, OutBound chan<- compressor.TheMessage) {
+func QOSScheduler1(QOSRT <-chan TheMessage, OutBound chan<- TheMessage) {
 
 	defer close(OutBound)
 	defer log.Info("Done QOSScheduler1")
@@ -52,11 +52,11 @@ func QOSScheduler1(QOSRT <-chan compressor.TheMessage, OutBound chan<- compresso
 	}
 }
 
-func QOSScheduler4(QOSIdle <-chan compressor.TheMessage, QOSLo <-chan compressor.TheMessage,
-	QOSHi <-chan compressor.TheMessage, QOSRT <-chan compressor.TheMessage, OutBound chan<- compressor.TheMessage) {
+func QOSScheduler4(QOSIdle <-chan TheMessage, QOSLo <-chan TheMessage,
+	QOSHi <-chan TheMessage, QOSRT <-chan TheMessage, OutBound chan<- TheMessage) {
 	defer log.Info("Terminating QOSScheduler4")
 	log.Info("Initiating  QOSScheduler4")
-	var x compressor.TheMessage
+	var x TheMessage
 	var ok bool
 	for {
 		select {
@@ -133,12 +133,12 @@ func QOSScheduler4(QOSIdle <-chan compressor.TheMessage, QOSLo <-chan compressor
 
 }
 
-func QOSScheduler3(QOSLo <-chan compressor.TheMessage, QOSHi <-chan compressor.TheMessage,
-	QOSRT <-chan compressor.TheMessage, OutBound chan<- compressor.TheMessage) {
+func QOSScheduler3(QOSLo <-chan TheMessage, QOSHi <-chan TheMessage,
+	QOSRT <-chan TheMessage, OutBound chan<- TheMessage) {
 	defer log.Info("Terminating QOSScheduler3")
 	log.Info("Initiating  QOSScheduler3")
 	for {
-		var x compressor.TheMessage
+		var x TheMessage
 		var ok bool
 		select {
 		case x, ok = <-QOSRT:
@@ -189,9 +189,9 @@ func QOSScheduler3(QOSLo <-chan compressor.TheMessage, QOSHi <-chan compressor.T
 
 }
 
-func QOSScheduler2(QOSHi <-chan compressor.TheMessage, QOSRT <-chan compressor.TheMessage, OutBound chan<- compressor.TheMessage) {
+func QOSScheduler2(QOSHi <-chan TheMessage, QOSRT <-chan TheMessage, OutBound chan<- TheMessage) {
 
-	var x compressor.TheMessage
+	var x TheMessage
 	var ok bool
 
 	log.Info("Initiating  QOSScheduler2")

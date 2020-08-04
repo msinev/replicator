@@ -48,8 +48,8 @@ type Client struct {
 	//  static pipeline - no need to keep just for debugging
 	//-- remove channels from client's structure after debugging
 	//	KVFullScan   []chan []Reader.RedisKV
-	KVPartSink  []chan reader.VersionData
-	MsgSink     []chan compressor.CompressableData
+	KVPartSink []chan reader.VersionData
+	//MsgSink     []chan compressor.CompressableData
 	//BlockDrains []chan compressor.TheMessage
 
 	//SocketDrain <-chan compressor.TheMessage
@@ -118,9 +118,9 @@ func (client *Client) Init(ldbs int) {
 
 	//client.KVFullScan = make([]chan []Reader.RedisKV, ldbs)
 	client.KVPartSink = make([]chan reader.VersionData, ldbs)
-	client.MsgSink = make([]chan compressor.CompressableData, ldbs)
-	client.DataBreakers = make([]chan compressor.CompressedData, ldbs)
-	client.BlockDrains = make([]chan compressor.TheMessage, ldbs)
+	//client.MsgSink = make([]chan compressor.CompressableData, ldbs)
+	//client.DataBreakers = make([]chan compressor.CompressedData, ldbs)
+	//client.BlockDrains = make([]chan compressor.TheMessage, ldbs)
 	client.TerminateChain = func() {
 		log.Info("Client %s terminating", client.ID)
 		close(client.Alive)

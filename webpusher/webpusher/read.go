@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/gorilla/websocket"
 	"github.com/msinev/replicator/control"
 	"github.com/msinev/replicator/webpusher/reader"
 	"sync"
@@ -26,6 +27,9 @@ type WebClient struct {
 
 	TSStart time.Time
 
+	ConnWS     *websocket.Conn
+	ProcessAPI chan *SyncRequest
+
 	//  static pipeline - no need to keep just for debugging
 	//-- remove channels from client's structure after debugging
 	//	KVFullScan   []chan []Reader.RedisKV
@@ -38,7 +42,8 @@ type WebClient struct {
 	// Control
 	Finished sync.WaitGroup
 	Control  chan control.ControlMessage
-	Alive    chan int // never being sent just close on quit
+
+	Alive chan int // never being sent just close on quit
 
 	TSSynced       []time.Time
 	TSLatestUpdate []time.Time

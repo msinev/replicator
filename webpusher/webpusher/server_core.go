@@ -2,8 +2,9 @@ package main
 
 import (
 	"bufio"
+	"net/http"
 
-	"github.com/msinev/replicator/reader"
+	"github.com/msinev/replicator/webpusher/reader"
 	"net"
 
 	"strconv"
@@ -49,11 +50,15 @@ func loadMsg(redis int) (*sendrecv.Msg) {
 	bufpb,_:=lzma.Uncompress(lzmab)
 	log.Infof("Uncompressed %d \n", len(bufpb) )
 	rdr:=bytes.NewReader(bufpb)
-
 	msg:=readPB(rdr)
 	return msg
 }
 */
+
+type SyncRequest struct {
+	syncType int
+	wr       http.ResponseWriter
+}
 
 //const GZIPCompression = 2
 //const LZMACompression = 1
@@ -63,8 +68,8 @@ func SocketWriter(client *WebClient, inCh <-chan *JSONVersionData) {
 
 	defer log.Info("Socket writer exiting")
 
-	defer client.DoneMsg()
-	defer client.Conn.Close()
+	//defer client.DoneMsg()
+	defer client.ConnWS.Close()
 
 	count := 0
 	for {
@@ -78,21 +83,12 @@ func SocketWriter(client *WebClient, inCh <-chan *JSONVersionData) {
 				return
 			}
 
-			ldata := len(block)
+			ldata := len(block.JSONData)
 			count++
 			log.Infof("Block %d %d for socket!", count, ldata)
-
-			for ldata > 0 {
-				n, err := client.Conn.Write(block)
-				if err != nil {
-					log.Error("error writing socket", err)
-					return
-				}
-				if n >= ldata {
-					break
-				}
-				block = block[n:]
-				ldata -= n
+			err := client.ConnWS.WriteMessage(1, block.JSONData)
+			if err != nil {
+				log.Error(err)
 			}
 		}
 
@@ -134,7 +130,7 @@ const serverBlockBuffer = 3
 
 var clietID uint64 = 0
 
-func handleServer(tcpconn net.Conn, w *sync.WaitGroup, scan []ScanReader, delta []reader.DeltaReceiver) {
+func handleServer(w *sync.WaitGroup, scan []ScanReader, delta []reader.DeltaReceiver, client *WebClient) {
 
 	//defer tcpconn.Close()
 	if w != nil {
@@ -149,7 +145,6 @@ func handleServer(tcpconn net.Conn, w *sync.WaitGroup, scan []ScanReader, delta 
 	clientid := remote + ":" + strconv.FormatUint(id, 16)
 	log.Infof("Serving connection from %s", remote)
 
-	client := new(Client)
 	client.Init(ldbs)
 	client.Conn = tcpconn
 	client.ID = tcpconn.RemoteAddr().String()
