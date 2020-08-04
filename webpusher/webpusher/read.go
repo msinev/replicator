@@ -26,6 +26,7 @@ type WebClient struct {
 	TerminateChain func()
 
 	TSStart time.Time
+	Filter  string
 
 	ConnWS     *websocket.Conn
 	ProcessAPI chan *SyncRequest

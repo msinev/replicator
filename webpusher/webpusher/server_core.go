@@ -130,7 +130,7 @@ const serverBlockBuffer = 3
 
 var clietID uint64 = 0
 
-func handleServer(w *sync.WaitGroup, scan []ScanReader, delta []reader.DeltaReceiver, client *WebClient) {
+func HandleServerInstance(w *sync.WaitGroup, scan []ScanReader, delta []reader.DeltaReceiver, client chan *WebClient) {
 
 	//defer tcpconn.Close()
 	if w != nil {
