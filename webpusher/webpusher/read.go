@@ -16,6 +16,7 @@ type ClientStats struct {
 type WebClient struct {
 	// static
 	Databases []int
+	Readers   []chan<- *DrainRequest
 	Versions  []int64
 	SESSID    string
 

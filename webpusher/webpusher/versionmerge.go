@@ -5,6 +5,7 @@ import (
 	"github.com/msinev/replicator/jsonjackson"
 	"github.com/msinev/replicator/webpusher/reader"
 	"sort"
+	"sync"
 	"time"
 )
 
@@ -96,7 +97,7 @@ func writeJSONKV(vdata reader.VersionData, wrt *jsonjackson.JSONWriter) {
 }
 
 
-func sendVersionSnapshot(cli WebClient, request SyncRequest) uint64 {
+func sendVersionSnapshot(cli WebClient, request *SyncRequest) uint64 {
 /*	if vdata.Version <= isent {
 		return nil, isent
 	}
@@ -105,11 +106,13 @@ func sendVersionSnapshot(cli WebClient, request SyncRequest) uint64 {
 	//bbuf := new(bytes.Buffer)
 	jw := jsonjackson.NewBuilder(request.Wr)
 	vdata:=make(chan reader.VersionData, len(DBS))
-	DrainRequest{vdata, }
+	drq:=&DrainRequest{vdata}
 	jw.BeginArray()
-	for i,v:= range cli.Databases {
-
-		request.
+	for _,v:= range cli.Readers {
+		v<-drq
+	}
+	for cli.Readers {
+		v<-drq
 	}
 
 	writeJSONKV(vdata, jw)
