@@ -33,7 +33,7 @@ type WebClient struct {
 
 	//  static pipeline - no need to keep just for debugging
 	//-- remove channels from client's structure after debugging
-	//	KVFullScan   []chan []Reader.RedisKV
+	//	KVFullScan   []chan []Reader.PKVData
 	KVPartSink []chan reader.VersionData
 
 	//

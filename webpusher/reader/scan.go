@@ -24,12 +24,13 @@ type ServerOptions struct {
 }
 
 type VersionData struct {
+	DB          int
 	Version     uint64
 	DeltaFor    uint64
-	VersionData []RedisKV
+	VersionData []PKVData
 }
 
-func KVVersionGenerator(so ServerOptions, inc <-chan []RedisKV, outc chan<- VersionData) {
+func KVVersionGenerator(so ServerOptions, inc <-chan []PKVData, outc chan<- VersionData) {
 
 	defer log.Infof("KVScanAccumulator %d terminated", so.DB)
 	defer close(outc)
@@ -37,7 +38,7 @@ func KVVersionGenerator(so ServerOptions, inc <-chan []RedisKV, outc chan<- Vers
 	//outc := client.kvPartSink[db]  -- remove channels from client's structure after debugging
 	//inc :=client.kvFullScan[db] -- remove channels from client's structure after debugging
 
-	//kvbuf:=make([]RedisKV, 0, 20000)
+	//kvbuf:=make([]PKVData, 0, 20000)
 	ver := time.Now().Unix() * 10000
 
 	for kva := range inc {
@@ -93,9 +94,9 @@ type KVData struct {
 	TTL       *uint32
 }
 
-type RedisKV = *KVData
+type PKVData = *KVData
 type RetriveOperation func(string, redis.Conn) error
-type ReadOperation func(int64, string, redis.Conn) (error, RedisKV)
+type ReadOperation func(int64, string, redis.Conn) (error, PKVData)
 
 type TypeConverter struct {
 	init RetriveOperation
@@ -155,7 +156,7 @@ func ReadVersionDelta(so ServerOptions, start <-chan string, out chan<- VersionD
 				VersionData: existingKeys,
 			}:	{
 				existingKeyIndexes = make(map[string]int)
-				existingKeys = make([] RedisKV, 200)
+				existingKeys = make([] PKVData, 200)
 				fromVersion=nowVersion
 			}
 
@@ -203,7 +204,7 @@ func ReadVersionDelta(so ServerOptions, start <-chan string, out chan<- VersionD
 			if nowVersion < nextVersion {
 				newKeys := make(map[string]uint64)
 				existingKeyIndexes := make(map[string]int)
-				existingKeys := make([]RedisKV, 0)
+				existingKeys := make([]PKVData, 0)
 				for nowVersion < nextVersion {
 					//existingKeysCount:=len(existingKeyIndexes)
 					versionListTTL, err := redis.Int(conn.Do("TTL", versionKeyList+strconv.FormatUint(fromVersion, 10)))
@@ -301,8 +302,8 @@ func ReadVersionDelta(so ServerOptions, start <-chan string, out chan<- VersionD
 
 }
 
-func retriveKeys(existingKeyIndexes map[string]int, existingKeys []RedisKV, keys []string,
-	conn redis.Conn) (map[string]int, []RedisKV, error) {
+func retriveKeys(existingKeyIndexes map[string]int, existingKeys []PKVData, keys []string,
+	conn redis.Conn) (map[string]int, []PKVData, error) {
 	lkeys := len(keys)
 
 	pttl := make([]int64, lkeys)
@@ -375,7 +376,7 @@ func retriveKeys(existingKeyIndexes map[string]int, existingKeys []RedisKV, keys
 	return existingKeyIndexes, existingKeys, nil
 }
 
-func retrive(keys []string, conn redis.Conn) (error, []RedisKV) { // for KeyReader
+func retrive(keys []string, conn redis.Conn) (error, []PKVData) { // for KeyReader
 
 	log.Notice("Retrive starting")
 	defer log.Notice("Retrive complete")
@@ -427,7 +428,7 @@ func retrive(keys []string, conn redis.Conn) (error, []RedisKV) { // for KeyRead
 	}
 
 	conn.Flush()
-	databuf := make([]RedisKV, len(keys))
+	databuf := make([]PKVData, len(keys))
 	for key, val := range keys {
 		ttk := pttl[key]
 		if !uselessTTL(ttk) {
@@ -471,7 +472,7 @@ func GetVersion(db int) (uint64, bool) {
 	return version, ok
 }
 
-func KeyReader(db int, inp <-chan []string, out chan<- []RedisKV) {
+func KeyReader(db int, inp <-chan []string, out chan<- []PKVData) {
 
 	//	go pollLoop(&wg1)
 	defer close(out)
@@ -533,7 +534,7 @@ func ScanVersion(so ServerOptions, version uint64, out chan<- VersionData) {
 			//nextVersion, err := redis.Uint64(conn.Do("EXISTS", versionKey))
 			newKeys := make(map[string]uint64)
 			existingKeyIndexes := make(map[string]int)
-			existingKeys := make([]RedisKV, 0)
+			existingKeys := make([]PKVData, 0)
 			for nowVersion < nextVersion {
 				//existingKeysCount:=len(existingKeyIndexes)
 
@@ -606,7 +607,7 @@ func ScanVersion(so ServerOptions, version uint64, out chan<- VersionData) {
 			log.Infof("Sent version update %d -> %d %d pairs", fromVersion, nextVersion, len(existingKeys))
 			fallback = false
 		} else if nowVersion == nextVersion {
-			out <- VersionData{DeltaFor: fromVersion, Version: nextVersion, VersionData: make([]RedisKV, 0)}
+			out <- VersionData{DeltaFor: fromVersion, Version: nextVersion, VersionData: make([]PKVData, 0)}
 			fallback = false
 			log.Infof("No changes in version %d", nextVersion)
 		}
@@ -652,7 +653,7 @@ func Scan(so ServerOptions, out chan<- VersionData) {
 		}
 
 		iter := 0
-		var data []RedisKV
+		var data []PKVData
 
 		for {
 

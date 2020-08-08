@@ -8,7 +8,7 @@ func retriveString(keys string, conn redis.Conn) error {
 	return conn.Send("GET", keys)
 }
 
-func readString(ttl int64, keys string, conn redis.Conn) (error, RedisKV) {
+func readString(ttl int64, keys string, conn redis.Conn) (error, PKVData) {
 	//	log.Println("Reading value of key " + keys)
 	reply, err := redis.String(conn.Receive())
 
@@ -51,7 +51,7 @@ func retriveHash(keys string, conn redis.Conn) error {
 	return conn.Send("HGETALL", keys)
 }
 
-func readList(ttl int64, keys string, conn redis.Conn) (error, RedisKV) {
+func readList(ttl int64, keys string, conn redis.Conn) (error, PKVData) {
 	//log.Println("Reading list " + keys)
 	reply, err := redis.Strings(conn.Receive())
 
@@ -78,7 +78,7 @@ func readList(ttl int64, keys string, conn redis.Conn) (error, RedisKV) {
 	return err, nil
 }
 
-func readSet(ttl int64, keys string, conn redis.Conn) (error, RedisKV) {
+func readSet(ttl int64, keys string, conn redis.Conn) (error, PKVData) {
 	log.Notice("Reading set " + keys)
 	reply, err := redis.Strings(conn.Receive())
 	//setOrdered := false
@@ -108,7 +108,7 @@ func readSet(ttl int64, keys string, conn redis.Conn) (error, RedisKV) {
 	return err, nil
 }
 
-func readZSet(ttl int64, keys string, conn redis.Conn) (error, RedisKV) {
+func readZSet(ttl int64, keys string, conn redis.Conn) (error, PKVData) {
 	log.Notice("Reading zset " + keys)
 	reply, err := redis.Strings(conn.Receive())
 	//setOrdered := true
@@ -137,7 +137,7 @@ func readZSet(ttl int64, keys string, conn redis.Conn) (error, RedisKV) {
 	return err, nil
 }
 
-func readHash(ttl int64, keys string, conn redis.Conn) (error, RedisKV) {
+func readHash(ttl int64, keys string, conn redis.Conn) (error, PKVData) {
 	reply, err := redis.Strings(conn.Receive())
 	lmap := len(reply) / 2
 	mapvals := make([]string, lmap)

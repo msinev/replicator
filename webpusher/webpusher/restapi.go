@@ -2,10 +2,46 @@ package main
 
 import (
 	"fmt"
-	"github.com/msinev/replicator/jsonjackson"
+	"github.com/codebear4/ttlcache"
 	"github.com/msinev/replicator/webpusher/reader"
 	"net/http"
+	"time"
 )
+
+var ClientCache ttlcache.Cache
+
+func initTTLCache() {
+	/*	newItemCallback := func(key string, value interface{}) {
+		fmt.Printf("New key(%s) added\n", key)
+	}*/
+	/*
+		checkExpirationCallback := func(key string, value interface{}) bool {
+			if key == "key1" {
+				// if the key equals "key1", the value
+				// will not be allowed to expire
+				return false
+			}
+			// all other values are allowed to expire
+			return true
+		}
+	*/
+
+	expirationCallback := func(key string, value interface{}) {
+		fmt.Printf("Sesssion key(%s) has expired\n", key)
+		close(value.(WebClient).Alive)
+	}
+
+	cache := ttlcache.NewCache()
+	cache.SetTTL(time.Duration(90 * time.Second))
+	cache.SetExpirationCallback(expirationCallback)
+
+	cache.Set("key", "value")
+	cache.SetWithTTL("keyWithTTL", "value", 10*time.Second)
+
+	//	value, exists := cache.Get("key")
+	//	count := cache.Count()
+	//	result := cache.Remove("key")
+}
 
 func reply(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/html")
@@ -17,58 +53,111 @@ func reply(w http.ResponseWriter, r *http.Request) {
 
 func options(w http.ResponseWriter, r *http.Request) {
 	//
-	w.Header().Set("Content-Type", "application/json")
 	r.ParseForm()
 	ids := r.Form.Get("id")
-	filter := r.Form.Get("filter")
-
-	jw := jsonjackson.NewBuilder(w)
-	jw.BeginArray()
-	jw.Str(ids)
-	jw.Str(filter)
-
-	defer jw.CloseAll()
+	c, exist := ClientCache.Get(ids)
+	if exist {
+		se := &SyncRequest{}
+		se.Release.Add(1)
+		select {
+		case c.(WebClient).ProcessAPI <- se:
+			se.Release.Wait()
+		default:
+			w.WriteHeader(http.StatusConflict)
+			w.Write([]byte("Session ID " + ids + " already serving request wait or close"))
+		}
+	} else {
+		w.WriteHeader(http.StatusNotFound)
+		w.Write([]byte("Session ID " + ids + " not found"))
+	}
 	//
 }
 
 func sockets(w http.ResponseWriter, r *http.Request) {
 	//
-	w.Header().Set("Content-Type", "application/json")
 	r.ParseForm()
 	ids := r.Form.Get("id")
-
-	jw := jsonjackson.NewBuilder(w)
-	jw.BeginArray()
-	jw.Str(ids)
-
-	defer jw.CloseAll()
+	c, exist := ClientCache.Get(ids)
+	if exist {
+		se := &SyncRequest{}
+		se.Release.Add(1)
+		select {
+		case c.(WebClient).ProcessAPI <- se:
+			se.Release.Wait()
+		default:
+			w.WriteHeader(http.StatusConflict)
+			w.Write([]byte("Session ID " + ids + " already serving request wait or close"))
+		}
+	} else {
+		w.WriteHeader(http.StatusNotFound)
+		w.Write([]byte("Session ID " + ids + " not found"))
+	}
 	//
 }
 
 func delta(w http.ResponseWriter, r *http.Request) {
 	//
-	w.Header().Set("Content-Type", "application/json")
 	r.ParseForm()
 	ids := r.Form.Get("id")
+	c, exist := ClientCache.Get(ids)
+	if exist {
+		se := &SyncRequest{}
+		se.Release.Add(1)
+		select {
+		case c.(WebClient).ProcessAPI <- se:
+			se.Release.Wait()
+		default:
+			w.WriteHeader(http.StatusConflict)
+			w.Write([]byte("Session ID " + ids + " already serving request wait or close"))
+		}
+	} else {
+		w.WriteHeader(http.StatusNotFound)
+		w.Write([]byte("Session ID " + ids + " not found"))
+	}
+	/*
+		jw := jsonjackson.NewBuilder(w)
+		jw.BeginArray()
+		jw.Str(ids)
 
-	jw := jsonjackson.NewBuilder(w)
-	jw.BeginArray()
-	jw.Str(ids)
+		defer jw.CloseAll()
 
-	defer jw.CloseAll()
+	*/
 	//
+}
+
+func closeClient(w http.ResponseWriter, r *http.Request, scan []ScanReader) {
+	//
+	r.ParseForm()
+	ids := r.Form.Get("id")
+	c, exist := ClientCache.Get(ids)
+	if exist {
+		close(c.(WebClient).ProcessAPI)
+		ClientCache.Remove(ids)
+	} else {
+		w.WriteHeader(http.StatusNotFound)
+		w.Write([]byte("Session ID " + ids + " not found"))
+	}
 }
 
 func fullCopy(w http.ResponseWriter, r *http.Request, scan []ScanReader, delta []reader.DeltaReceiver) {
 	//
-	w.Header().Set("Content-Type", "application/json")
 	r.ParseForm()
 	ids := r.Form.Get("id")
+	c, exist := ClientCache.Get(ids)
+	if exist {
+		se := &SyncRequest{}
+		se.Release.Add(1)
+		select {
+		case c.(WebClient).ProcessAPI <- se:
+			se.Release.Wait()
+		default:
+			w.WriteHeader(http.StatusConflict)
+			w.Write([]byte("Session ID " + ids + " already serving request wait or close"))
+		}
+	} else {
+		w.WriteHeader(http.StatusNotFound)
+		w.Write([]byte("Session ID " + ids + " not found"))
+	}
 
-	jw := jsonjackson.NewBuilder(w)
-	jw.BeginArray()
-	jw.Str(ids)
-
-	defer jw.CloseAll()
 	//
 }

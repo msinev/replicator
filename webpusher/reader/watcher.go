@@ -163,7 +163,7 @@ func RedisSubscriber(URL string, dbs []int, dbtype map[int]string, listeners []c
 	}
 }
 
-func KeyUpdatePublisher(db int, listener <-chan RedisUpdates, out chan<- []RedisKV) {
+func KeyUpdatePublisher(db int, listener <-chan RedisUpdates, out chan<- []PKVData) {
 
 	defer panic("Subscriber crashed")
 	rate := time.Second * 10

@@ -1,15 +1,11 @@
 package main
 
 import (
-	"bufio"
 	"net/http"
 
 	"github.com/msinev/replicator/webpusher/reader"
-	"net"
 
-	"strconv"
 	"sync"
-	"sync/atomic"
 	//	"RedisReplica/blockaggregator"
 	//	"net/http"
 )
@@ -56,8 +52,15 @@ func loadMsg(redis int) (*sendrecv.Msg) {
 */
 
 type SyncRequest struct {
-	syncType int
-	wr       http.ResponseWriter
+	SyncType int
+	Wr       http.ResponseWriter
+	//rq       *http.Request
+	Release sync.WaitGroup
+}
+
+type DrainRequest struct {
+	Responses    chan<- reader.VersionData
+	ResponseDone sync.WaitGroup
 }
 
 //const GZIPCompression = 2
@@ -130,6 +133,7 @@ const serverBlockBuffer = 3
 
 var clietID uint64 = 0
 
+/*
 func HandleServerInstance(w *sync.WaitGroup, scan []ScanReader, delta []reader.DeltaReceiver, client chan *WebClient) {
 
 	//defer tcpconn.Close()
@@ -173,11 +177,11 @@ func HandleServerInstance(w *sync.WaitGroup, scan []ScanReader, delta []reader.D
 		client.DataBreakers[rk] = stage4 // for debug
 		client.BlockDrains[rk] = stage5  // for debug
 		qosDrains[rk] = stage5
-		/*
-		   func KVMerger(db int, stop <-chan int64, outrqc chan<- <-chan Reader.VersionData,
-		   	ind chan Reader.VersionData, outc chan Compressor.CompressableData) {
-		   			rqVersion
-		*/
+*/ /*
+   func KVMerger(db int, stop <-chan int64, outrqc chan<- <-chan Reader.VersionData,
+   	ind chan Reader.VersionData, outc chan Compressor.CompressableData) {
+   			rqVersion
+*/ /*
 		rqVersion := int64(0)
 		if client.Versions != nil {
 			rqVersion = client.Versions[rk]
@@ -188,7 +192,7 @@ func HandleServerInstance(w *sync.WaitGroup, scan []ScanReader, delta []reader.D
 		//go Reader.Scan(rv, stage2, &client.DBReader) moved to Init
 		//		go Reader.KVScanAccumulator(rk, stage1,  stage2)
 
-		go ServerDataCompressor(client, rk, GZIPCompression, stage3, stage4)
+		//go ServerDataCompressor(client, rk, GZIPCompression, stage3, stage4)
 		go ServerDataStreaming(client, rk, stage4, stage5)
 		//		} else {
 
@@ -230,6 +234,8 @@ func HandleServerInstance(w *sync.WaitGroup, scan []ScanReader, delta []reader.D
 		return
 	}
 }
+
+*/
 
 type ScanRequest struct {
 	Version int64
@@ -310,7 +316,7 @@ func InitScanReaderWithNoVersionCheck(dbindex int) (<-chan Reader.VersionData, c
 	versionchan := make(chan Reader.VersionData)
 	controlchan := make(chan uint64)
 	keyblock := make(chan []string)
-	kvdata := make(chan []Reader.RedisKV)
+	kvdata := make(chan []Reader.PKVData)
 	//for k,_:= range DBS {
 	rs := DBDeltaReaders[dbindex].SubscribeKeys(remote)
 

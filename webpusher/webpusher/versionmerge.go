@@ -2,8 +2,7 @@ package main
 
 import (
 	"bytes"
-
-	"github.com/msinev/replicator/compressor"
+	"github.com/msinev/replicator/jsonjackson"
 	"github.com/msinev/replicator/webpusher/reader"
 	"sort"
 	"time"
@@ -89,32 +88,68 @@ type JSONVersionData struct {
 	DeltaFor uint64
 	JSONData []byte
 }
+func writeJSONKV(vdata reader.VersionData, wrt *jsonjackson.JSONWriter) {
+	for _,msg:=range vdata.VersionData {
+		msg.Write(wrt)
+	}
 
-func getCompressableSnapshot(vdata reader.VersionData, isent uint64) (*JSONVersionData, uint64) {
+}
+
+
+func sendVersionSnapshot(cli WebClient, request SyncRequest) uint64 {
+/*	if vdata.Version <= isent {
+		return nil, isent
+	}
+*/
+	defer request.Release.Done()
+	//bbuf := new(bytes.Buffer)
+	jw := jsonjackson.NewBuilder(request.Wr)
+	vdata:=make(chan reader.VersionData, len(DBS))
+	DrainRequest{vdata, }
+	jw.BeginArray()
+	for i,v:= range cli.Databases {
+
+		request.
+	}
+
+	writeJSONKV(vdata, jw)
+	jw.CloseAll()  // just in case
+
+	log.Infof("Uncompressed length %d!", bbuf.Len())
+	&JSONVersionData{
+		Version:  0,
+		DeltaFor: 1,
+		JSONData: bbuf.Bytes(),
+	},
+	return vdata.Version
+}
+
+
+func sendVersionCompression(rq *DrainRequest) uint64 {
 	if vdata.Version <= isent {
 		return nil, isent
 	}
 
-	kvbuf := make([]RedisKV, 0, 20000)
 
-	for _, c := range vdata.VersionData {
-		kvbuf = append(kvbuf, c)
-	}
 
 	bbuf := new(bytes.Buffer)
-	writeJSONKV(&vMsg, bbuf)
+	jw := jsonjackson.NewBuilder(bbuf)
+
+	jw.BeginArray()
+	writeJSONKV(vdata, jw)
+	jw.CloseAll()  // just in case
 
 	log.Infof("Uncompressed length %d!", bbuf.Len())
-
-	return &JSONVersionData{
+	&JSONVersionData{
 		Version:  0,
 		DeltaFor: 1,
 		JSONData: bbuf.Bytes(),
-	}, vdata.Version
+	},
+	return vdata.Version
 }
 
 var TFALSE = false
-
+/*
 func getCompressableDelta(deltas []reader.VersionData,
 	prev *compressor.CompressableData,
 	isent uint64, iprepared uint64) (*compressor.CompressableData,
@@ -198,9 +233,14 @@ func getCompressableDelta(deltas []reader.VersionData,
 		Data:     bbuf.Bytes(),
 	}, version, deltas
 }
+*/
 
-func KVMerger(db int, stop <-chan int, outrqc chan<- ScanRequest,
-	ind <-chan reader.VersionData, outc chan compressor.CompressableData, clientID string, rqVersion int64) {
+func KVPullMerger(db int, stop <-chan int,
+			outrqc chan<- ScanRequest,
+			ind <-chan reader.VersionData,
+			ssr chan<- *DrainRequest,
+			initialDrain *DrainRequest) {
+
 	// Merging
 	//state:=0 -- version not defined
 	// received scan
@@ -208,14 +248,15 @@ func KVMerger(db int, stop <-chan int, outrqc chan<- ScanRequest,
 
 	/*
 		IN:
-		stop
-		ind
-		vscan
+		 stop
+		 ind
+	 	 vscan
 		OUT:
 		 outrqc
 		 outc
 	*/
-	log.Infof("KVMerger dbid: %d started with RQVersion: %d, client: %s", db, rqVersion, clientID)
+
+	///log.Infof("KVMerger dbid: %d started with RQVersion: %d, client: %s", db, rqVersion, client.SESSID)
 
 	var timeFuse <-chan time.Time
 
@@ -225,12 +266,10 @@ func KVMerger(db int, stop <-chan int, outrqc chan<- ScanRequest,
 
 	var versionSent uint64
 	var versionPrepared uint64
-
 	var reliableDelta uint64
 
 	vscan := make(chan reader.VersionData)
-	scanrq := ScanRequest{Reply: vscan, Version: rqVersion}
-	var ready2Send *compressor.CompressableData
+	scanrq := ScanRequest{Reply: vscan, Version: 0 }
 	scanRepeat := 0
 
 	for {

@@ -50,7 +50,7 @@ type Client struct {
 
 	//  static pipeline - no need to keep just for debugging
 	//-- remove channels from client's structure after debugging
-	//	KVFullScan   []chan []Reader.RedisKV
+	//	KVFullScan   []chan []Reader.PKVData
 	KVPartSink   []chan reader.VersionData
 	MsgSink      []chan compressor.CompressableData
 	DataBreakers []chan compressor.CompressedData
@@ -120,7 +120,7 @@ func (client *Client) Init(ldbs int) {
 	client.Stats.Init(ldbs)
 	//
 
-	//client.KVFullScan = make([]chan []Reader.RedisKV, ldbs)
+	//client.KVFullScan = make([]chan []Reader.PKVData, ldbs)
 	client.KVPartSink = make([]chan reader.VersionData, ldbs)
 	client.MsgSink = make([]chan compressor.CompressableData, ldbs)
 	client.DataBreakers = make([]chan compressor.CompressedData, ldbs)

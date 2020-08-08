@@ -318,7 +318,7 @@ func InitScanReaderWithNoVersionCheck(dbindex int) (<-chan Reader.VersionData, c
 	versionchan := make(chan Reader.VersionData)
 	controlchan := make(chan uint64)
 	keyblock := make(chan []string)
-	kvdata := make(chan []Reader.RedisKV)
+	kvdata := make(chan []Reader.PKVData)
 	//for k,_:= range DBS {
 	rs := DBDeltaReaders[dbindex].SubscribeKeys(remote)
 
