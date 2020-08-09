@@ -97,7 +97,7 @@ func writeJSONKV(vdata reader.VersionData, wrt *jsonjackson.JSONWriter) {
 }
 
 
-func sendVersionSnapshot(cli WebClient, request *SyncRequest) uint64 {
+func sendVersionSnapshot(cli WebClient, request *SyncRequest)  {
 /*	if vdata.Version <= isent {
 		return nil, isent
 	}
@@ -111,20 +111,22 @@ func sendVersionSnapshot(cli WebClient, request *SyncRequest) uint64 {
 	for _,v:= range cli.Readers {
 		v<-drq
 	}
-	for cli.Readers {
-		v<-drq
+	for  i := 0; i<len(cli.Readers); i++  {
+		vi:=<-vdata
+		writeJSONKV(vi, jw)
 	}
 
-	writeJSONKV(vdata, jw)
+
 	jw.CloseAll()  // just in case
 
-	log.Infof("Uncompressed length %d!", bbuf.Len())
-	&JSONVersionData{
+	//log.Infof("Uncompressed length %d!", bbuf.Len())
+	/*&JSONVersionData{
 		Version:  0,
 		DeltaFor: 1,
 		JSONData: bbuf.Bytes(),
-	},
-	return vdata.Version
+	}*/
+
+	//return vdata.Version
 }
 
 

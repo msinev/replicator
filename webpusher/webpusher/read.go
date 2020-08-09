@@ -20,11 +20,11 @@ type WebClient struct {
 	Versions  []int64
 	SESSID    string
 
-	Info      map[string]string
-	Handshake map[string]string
+	//Info      map[string]string
+	//Handshake map[string]string
 
-	terminateDo    sync.Once
-	TerminateChain func()
+	TerminateDone sync.Once
+	//TerminateChain func()
 
 	TSStart time.Time
 	Filter  string
