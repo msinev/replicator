@@ -2,10 +2,11 @@ package main
 
 import (
 	"bytes"
+	"github.com/msinev/replicator/compressor"
 	"github.com/msinev/replicator/jsonjackson"
 	"github.com/msinev/replicator/webpusher/reader"
 	"sort"
-	"sync"
+
 	"time"
 )
 
@@ -49,8 +50,8 @@ func init() {
 //
 //
 // Mytype must implement Less func.
-func InitVersionCollection(f *reader.VersionData) []reader.VersionData {
-	return append([]reader.VersionData(nil), *f)
+func InitVersionCollection(f *reader.VersionData) []*reader.VersionData {
+	return append([]*reader.VersionData(nil), f)
 }
 
 func ResetVersionCollection(v []reader.VersionData) []reader.VersionData {
@@ -58,10 +59,10 @@ func ResetVersionCollection(v []reader.VersionData) []reader.VersionData {
 	return make([]reader.VersionData, 0, 3)
 }
 
-func AppendVersionWithSort(s []reader.VersionData, f reader.VersionData) []reader.VersionData {
+func AppendVersionWithSort(s []*reader.VersionData, f *reader.VersionData) []*reader.VersionData {
 	l := len(s)
 	if l == 0 {
-		return append([]reader.VersionData(nil), f)
+		return append([]*reader.VersionData(nil), f)
 	}
 
 	if s[l-1].Version <= f.Version { // new value is the biggest
@@ -71,7 +72,7 @@ func AppendVersionWithSort(s []reader.VersionData, f reader.VersionData) []reade
 	i := sort.Search(l, func(i int) bool { return s[i].Version < f.Version })
 
 	if i == l { // not found = new value is the smallest
-		return append(append([]reader.VersionData(nil), f), s...)
+		return append(append([]*reader.VersionData(nil), f), s...)
 	}
 
 	if i == l-1 { // new value is the biggest ???
@@ -155,14 +156,13 @@ func sendVersionCompression(rq *DrainRequest) uint64 {
 
 var TFALSE = false
 
-/*
-func getCompressableDelta(deltas []reader.VersionData,
-	prev *compressor.CompressableData,
-	isent uint64, iprepared uint64) (*compressor.CompressableData,
+func mergeDeltas(newDeltas []*reader.VersionData,
+	prevDelta *reader.VersionData,
+	isent uint64, iprepared uint64) (*reader.VersionData,
 	uint64,
-	[]reader.VersionData) {
+	*[]reader.VersionData) {
 
-	log.Debugf("getCompressableDelta data length %d (%d -> %d)", len(deltas), isent, iprepared)
+	log.Debugf("mergingDeltas data length %d (%d -> %d)", len(deltas), isent, iprepared)
 	sent := isent
 
 	// TODO: make it merge deltas for optimisation
@@ -239,9 +239,8 @@ func getCompressableDelta(deltas []reader.VersionData,
 		Data:     bbuf.Bytes(),
 	}, version, deltas
 }
-*/
 
-func updateSentVersion(vdata *reader.VersionData, isent uint64) (*reader.VersionData, uint64) {
+func updateLatestVersion(vdata *reader.VersionData, isent uint64) (*reader.VersionData, uint64) {
 	if vdata.Version <= isent {
 		return nil, isent
 	}
@@ -275,7 +274,7 @@ func KVPullMerger(db int, stop <-chan int,
 	var timeFuse <-chan time.Time
 	var outc *DrainRequest
 
-	var mapDeltaAll []reader.VersionData
+	var mapDeltaAll []*reader.VersionData
 
 	state := initialSendScan
 
@@ -286,7 +285,7 @@ func KVPullMerger(db int, stop <-chan int,
 	var versionSent uint64
 	var versionPrepared uint64
 	var reliableDelta uint64
-	var ready2send reader.VersionData
+	var ready2send *reader.VersionData
 
 	vscan := make(chan reader.VersionData)
 	scanrq := ScanRequest{Reply: vscan, Version: 0}
@@ -315,9 +314,9 @@ func KVPullMerger(db int, stop <-chan int,
 					mapDeltaAll = InitVersionCollection(v)
 					//
 					//v
-					ready2send, versionPrepared = updateSentVersion(v, versionSent)
+					ready2send, versionPrepared = updateLatestVersion(v, versionSent)
 					//outc=nil
-					//					ready2Send, versionPrepared = getCompressableSnapshot(v, versionSent)
+					//					ready2send, versionPrepared = updateLatestVersion(v, versionSent)
 				}
 			}
 
@@ -331,18 +330,13 @@ func KVPullMerger(db int, stop <-chan int,
 				if v.DeltaFor == 0 { // Received not delta but snapshot
 					state = brokenInitialScanDelta
 					reliableDelta = 0
-					if currentDrain != nil {
-						currentDrain.Responses <- v
-						currentDrain = nil
-					} else {
 
-					}
-					//ready2Send, versionPrepared = getCompressableSnapshot(v, versionSent)
+					ready2send, versionPrepared = updateLatestVersion(v, versionSent)
 				} else {
 					state = initialWaitScanWithDeltas
 					if reliableDelta < v.Version {
 						mapDeltaAll = AppendVersionWithSort(mapDeltaAll, v)
-						ready2Send, versionPrepared, mapDeltaAll = getCompressableDelta(mapDeltaAll, ready2Send, versionSent, versionPrepared)
+						ready2send, versionPrepared, mapDeltaAll = getCompressableDelta(mapDeltaAll, ready2send, versionSent, versionPrepared)
 					}
 				}
 
@@ -353,7 +347,7 @@ func KVPullMerger(db int, stop <-chan int,
 					scanRepeat = 0
 					state = activeSendWaitDeltas
 					mapDeltaAll = append([]reader.VersionData(nil), s)
-					ready2Send, versionPrepared = getCompressableSnapshot(s, versionSent)
+					ready2send, versionPrepared = updateLatestVersion(s, versionSent)
 
 				} else {
 					log.Infof("Merger initialWaitScan DB %d scan not ok aborting", db)
@@ -390,12 +384,12 @@ func KVPullMerger(db int, stop <-chan int,
 				if v.DeltaFor == 0 { // Received not delta but snapshot
 					state = brokenInitialScanDelta
 					reliableDelta = 0
-					ready2Send, versionPrepared = getCompressableSnapshot(v, versionSent)
+					ready2send, versionPrepared = updateLatestVersion(v, versionSent)
 				} else {
 					state = initialWaitScanWithDeltas
 					if reliableDelta < v.Version {
 						mapDeltaAll = AppendVersionWithSort(mapDeltaAll, v)
-						ready2Send, versionPrepared, mapDeltaAll = getCompressableDelta(mapDeltaAll, ready2Send, versionSent, versionPrepared)
+						ready2send, versionPrepared, mapDeltaAll = getCompressableDelta(mapDeltaAll, ready2send, versionSent, versionPrepared)
 					}
 				}
 			case _ = <-timeFuse:
@@ -432,14 +426,14 @@ func KVPullMerger(db int, stop <-chan int,
 					mapDeltaAll = append([]reader.VersionData(nil), v)
 					state = brokenInitialScanDelta
 					reliableDelta = 0
-					ready2Send, versionPrepared = getCompressableSnapshot(v, versionSent)
+					ready2send, versionPrepared = updateLatestVersion(v, versionSent)
 					mapDeltaAll = nil
 
 				} else {
 					state = initialWaitScanWithDeltas
 					if versionPrepared < v.Version {
 						mapDeltaAll = append(mapDeltaAll, v)
-						ready2Send, versionPrepared, mapDeltaAll = getCompressableDelta(mapDeltaAll, ready2Send, versionSent, versionPrepared)
+						ready2send, versionPrepared, mapDeltaAll = getCompressableDelta(mapDeltaAll, ready2send, versionSent, versionPrepared)
 					}
 				}
 
@@ -457,12 +451,12 @@ func KVPullMerger(db int, stop <-chan int,
 					// no need to scan
 					state = activeSendWaitDeltas
 					mapDeltaAll = append([]reader.VersionData(nil), v)
-					ready2Send, versionPrepared, mapDeltaAll = getCompressableDelta(mapDeltaAll, ready2Send, versionSent, versionPrepared)
+					ready2send, versionPrepared, mapDeltaAll = getCompressableDelta(mapDeltaAll, ready2send, versionSent, versionPrepared)
 				} else {
 					state = initialWaitScanWithDeltas
 					if versionPrepared < v.Version {
 						mapDeltaAll = append(mapDeltaAll, v)
-						ready2Send, versionPrepared, mapDeltaAll = getCompressableDelta(mapDeltaAll, ready2Send, versionSent, versionPrepared)
+						ready2send, versionPrepared, mapDeltaAll = getCompressableDelta(mapDeltaAll, ready2send, versionSent, versionPrepared)
 					} else {
 						log.Warningf("DB %d Ignoring delta update %d -> %d for prepared version %d", db, v.DeltaFor, v.Version, versionPrepared)
 					}
@@ -483,14 +477,14 @@ func KVPullMerger(db int, stop <-chan int,
 				return
 			case v := <-ind:
 				mapDeltaAll = append(mapDeltaAll, v)
-			case outc <- *ready2Send:
+			case outc <- *ready2send:
 
 			case s, ok := <-vscan:
 				if ok {
 					//					close(vscan)
 					state = activeSendWaitDeltas
 					mapDeltaAll = append([]reader.VersionData(nil), s)
-					ready2Send, versionPrepared = getCompressableSnapshot(s, versionSent)
+					ready2send, versionPrepared = updateLatestVersion(s, versionSent)
 
 				}
 			}
