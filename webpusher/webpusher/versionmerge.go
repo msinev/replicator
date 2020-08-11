@@ -49,8 +49,8 @@ func init() {
 //
 //
 // Mytype must implement Less func.
-func InitVersionCollection(f reader.VersionData) []reader.VersionData {
-	return append([]reader.VersionData(nil), f)
+func InitVersionCollection(f *reader.VersionData) []reader.VersionData {
+	return append([]reader.VersionData(nil), *f)
 }
 
 func ResetVersionCollection(v []reader.VersionData) []reader.VersionData {
@@ -84,40 +84,41 @@ func AppendVersionWithSort(s []reader.VersionData, f reader.VersionData) []reade
 
 //mergeData
 //vdata reader.VersionData
+
 type JSONVersionData struct {
 	Version  uint64
 	DeltaFor uint64
 	JSONData []byte
 }
+
 func writeJSONKV(vdata reader.VersionData, wrt *jsonjackson.JSONWriter) {
-	for _,msg:=range vdata.VersionData {
+	for _, msg := range vdata.VersionData {
 		msg.Write(wrt)
 	}
 
 }
 
-
-func sendVersionSnapshot(cli WebClient, request *SyncRequest)  {
-/*	if vdata.Version <= isent {
-		return nil, isent
-	}
-*/
+func sendVersionSnapshot(cli WebClient, request *SyncRequest) {
+	/*	if vdata.Version <= isent {
+			return nil, isent
+		}
+	*/
 	defer request.Release.Done()
 	//bbuf := new(bytes.Buffer)
 	jw := jsonjackson.NewBuilder(request.Wr)
-	vdata:=make(chan reader.VersionData, len(DBS))
-	drq:=&DrainRequest{vdata}
+	vdata := make(chan reader.VersionData, len(DBS))
+
+	drq := &DrainRequest{vdata}
 	jw.BeginArray()
-	for _,v:= range cli.Readers {
-		v<-drq
+	for _, v := range cli.Readers {
+		v <- drq
 	}
-	for  i := 0; i<len(cli.Readers); i++  {
-		vi:=<-vdata
+	for i := 0; i < len(cli.Readers); i++ {
+		vi := <-vdata
 		writeJSONKV(vi, jw)
 	}
 
-
-	jw.CloseAll()  // just in case
+	jw.CloseAll() // All just in case
 
 	//log.Infof("Uncompressed length %d!", bbuf.Len())
 	/*&JSONVersionData{
@@ -129,13 +130,11 @@ func sendVersionSnapshot(cli WebClient, request *SyncRequest)  {
 	//return vdata.Version
 }
 
-
+/*
 func sendVersionCompression(rq *DrainRequest) uint64 {
 	if vdata.Version <= isent {
 		return nil, isent
 	}
-
-
 
 	bbuf := new(bytes.Buffer)
 	jw := jsonjackson.NewBuilder(bbuf)
@@ -152,8 +151,10 @@ func sendVersionCompression(rq *DrainRequest) uint64 {
 	},
 	return vdata.Version
 }
+*/
 
 var TFALSE = false
+
 /*
 func getCompressableDelta(deltas []reader.VersionData,
 	prev *compressor.CompressableData,
@@ -240,11 +241,19 @@ func getCompressableDelta(deltas []reader.VersionData,
 }
 */
 
+func updateSentVersion(vdata *reader.VersionData, isent uint64) (*reader.VersionData, uint64) {
+	if vdata.Version <= isent {
+		return nil, isent
+	}
+
+	return vdata, vdata.Version
+}
+
 func KVPullMerger(db int, stop <-chan int,
-			outrqc chan<- ScanRequest,
-			ind <-chan reader.VersionData,
-			ssr chan<- *DrainRequest,
-			initialDrain *DrainRequest) {
+	outrqc chan<- ScanRequest,
+	ind <-chan *reader.VersionData,
+	ssr <-chan *DrainRequest,
+) {
 
 	// Merging
 	//state:=0 -- version not defined
@@ -252,29 +261,35 @@ func KVPullMerger(db int, stop <-chan int,
 	// received delta
 
 	/*
-		IN:
-		 stop
-		 ind
-	 	 vscan
-		OUT:
-		 outrqc
-		 outc
+			IN:
+			 stop
+			 ind
+		 	 vscan
+			OUT:
+			 outrqc
+			 outc
 	*/
 
 	///log.Infof("KVMerger dbid: %d started with RQVersion: %d, client: %s", db, rqVersion, client.SESSID)
 
 	var timeFuse <-chan time.Time
+	var outc *DrainRequest
 
 	var mapDeltaAll []reader.VersionData
 
 	state := initialSendScan
 
+	log.Info("Getting initial request")
+	outc = <-ssr
+	log.Info("Got initial request")
+
 	var versionSent uint64
 	var versionPrepared uint64
 	var reliableDelta uint64
+	var ready2send reader.VersionData
 
 	vscan := make(chan reader.VersionData)
-	scanrq := ScanRequest{Reply: vscan, Version: 0 }
+	scanrq := ScanRequest{Reply: vscan, Version: 0}
 	scanRepeat := 0
 
 	for {
@@ -298,8 +313,11 @@ func KVPullMerger(db int, stop <-chan int,
 					// Shortcut - not needing to wait scan
 					state = activeSendWaitDeltas
 					mapDeltaAll = InitVersionCollection(v)
-
-					ready2Send, versionPrepared = getCompressableSnapshot(v, versionSent)
+					//
+					//v
+					ready2send, versionPrepared = updateSentVersion(v, versionSent)
+					//outc=nil
+					//					ready2Send, versionPrepared = getCompressableSnapshot(v, versionSent)
 				}
 			}
 
@@ -313,7 +331,13 @@ func KVPullMerger(db int, stop <-chan int,
 				if v.DeltaFor == 0 { // Received not delta but snapshot
 					state = brokenInitialScanDelta
 					reliableDelta = 0
-					ready2Send, versionPrepared = getCompressableSnapshot(v, versionSent)
+					if currentDrain != nil {
+						currentDrain.Responses <- v
+						currentDrain = nil
+					} else {
+
+					}
+					//ready2Send, versionPrepared = getCompressableSnapshot(v, versionSent)
 				} else {
 					state = initialWaitScanWithDeltas
 					if reliableDelta < v.Version {
@@ -397,7 +421,7 @@ func KVPullMerger(db int, stop <-chan int,
 			case v, ok := <-stop:
 				log.Infof("activeSendWaitDeltas Stop requested in state %d in DB %d - %t : %d", state, db, ok, v)
 				return
-			case outc <- *ready2Send:
+			case outc.Responses <- ready2send:
 				log.Infof("activeSendWaitDeltas DB %d Sent data for version %d -> %d", db, versionSent, versionPrepared)
 				state = activeWaitDeltas
 				versionSent = versionPrepared
