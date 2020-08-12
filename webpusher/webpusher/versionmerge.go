@@ -92,7 +92,7 @@ type JSONVersionData struct {
 	JSONData []byte
 }
 
-func writeJSONKV(vdata reader.VersionData, wrt *jsonjackson.JSONWriter) {
+func writeJSONKV(vdata *reader.VersionData, wrt *jsonjackson.JSONWriter) {
 	for _, msg := range vdata.VersionData {
 		msg.Write(wrt)
 	}
@@ -116,7 +116,7 @@ func sendVersionSnapshot(cli WebClient, request *SyncRequest) {
 	}
 	for i := 0; i < len(cli.Readers); i++ {
 		vi := <-vdata
-		writeJSONKV(vi, jw)
+		writeJSONKV(&vi, jw)
 	}
 
 	jw.CloseAll() // All just in case
