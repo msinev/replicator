@@ -154,8 +154,7 @@ func sendVersionCompression(rq *DrainRequest) uint64 {
 
 var TFALSE = false
 
-func mergeDeltas(newDeltas *reader.VersionData,
-	prevDelta *reader.VersionData) *reader.VersionData {
+func mergeDeltas(newDeltas *reader.VersionData, prevDelta *reader.VersionData, preparedVersion uint64) (*reader.VersionData, uint64) {
 	c := 0
 
 	if newDeltas != nil {
@@ -167,7 +166,7 @@ func mergeDeltas(newDeltas *reader.VersionData,
 	}
 
 	if c == 0 {
-		return prevDelta
+		return prevDelta, preparedVersion
 	}
 
 	pkmap := make(map[string]reader.PKVData, c)
@@ -195,7 +194,7 @@ func mergeDeltas(newDeltas *reader.VersionData,
 		Version:     prevDelta.Version,
 		DeltaFor:    newDeltas.Version,
 		VersionData: newdata,
-	}
+	}, newDeltas.Version
 }
 
 func updateLatestVersion(vdata *reader.VersionData, isent uint64) (*reader.VersionData, uint64) {
@@ -232,7 +231,7 @@ func KVPullMerger(db int, stop <-chan int,
 	var timeFuse <-chan time.Time
 	var outc *DrainRequest
 
-	var mapDeltaAll []*reader.VersionData
+	//var mapDeltaAll []*reader.VersionData
 
 	state := initialSendScan
 
@@ -240,7 +239,7 @@ func KVPullMerger(db int, stop <-chan int,
 	outc = <-ssr
 	log.Info("Got initial request")
 
-	var versionSent uint64
+	//var versionSent uint64
 	var versionPrepared uint64
 	var reliableDelta uint64
 	var ready2send *reader.VersionData
@@ -269,10 +268,10 @@ func KVPullMerger(db int, stop <-chan int,
 				if v.DeltaFor == 0 { // Received not delta but snapshot
 					// Shortcut - not needing to wait scan
 					state = activeSendWaitDeltas
-					mapDeltaAll = InitVersionCollection(v)
+					//mapDeltaAll = InitVersionCollection(v)
 					//
 					//v
-					ready2send, versionPrepared = updateLatestVersion(v, versionSent)
+					ready2send, versionPrepared = updateLatestVersion(v, versionPrepared)
 					//outc=nil
 					//					ready2send, versionPrepared = updateLatestVersion(v, versionSent)
 				}
@@ -289,12 +288,12 @@ func KVPullMerger(db int, stop <-chan int,
 					state = brokenInitialScanDelta
 					reliableDelta = 0
 
-					ready2send, versionPrepared = updateLatestVersion(v, versionSent)
+					ready2send, versionPrepared = updateLatestVersion(v, versionPrepared)
 				} else {
 					state = initialWaitScanWithDeltas
 					if reliableDelta < v.Version {
-						mapDeltaAll = AppendVersionWithSort(mapDeltaAll, v)
-						ready2send, versionPrepared, mapDeltaAll = getCompressableDelta(mapDeltaAll, ready2send, versionSent, versionPrepared)
+						//mapDeltaAll = AppendVersionWithSort(mapDeltaAll, v)
+						ready2send, versionPrepared = mergeDeltas(v, ready2send, versionPrepared)
 					}
 				}
 
@@ -304,8 +303,8 @@ func KVPullMerger(db int, stop <-chan int,
 					//close(vscan)
 					scanRepeat = 0
 					state = activeSendWaitDeltas
-					mapDeltaAll = append([]reader.VersionData(nil), s)
-					ready2send, versionPrepared = updateLatestVersion(s, versionSent)
+					//mapDeltaAll = append([]reader.VersionData(nil), s)
+					ready2send, versionPrepared = updateLatestVersion(&s, versionPrepared)
 
 				} else {
 					log.Infof("Merger initialWaitScan DB %d scan not ok aborting", db)
@@ -342,18 +341,21 @@ func KVPullMerger(db int, stop <-chan int,
 				if v.DeltaFor == 0 { // Received not delta but snapshot
 					state = brokenInitialScanDelta
 					reliableDelta = 0
-					ready2send, versionPrepared = updateLatestVersion(v, versionSent)
+					ready2send, versionPrepared = updateLatestVersion(v, versionPrepared)
 				} else {
 					state = initialWaitScanWithDeltas
 					if reliableDelta < v.Version {
-						mapDeltaAll = AppendVersionWithSort(mapDeltaAll, v)
-						ready2send, versionPrepared, mapDeltaAll = getCompressableDelta(mapDeltaAll, ready2send, versionSent, versionPrepared)
+						//mapDeltaAll = AppendVersionWithSort(mapDeltaAll, v)
+						ready2send, versionPrepared = mergeDeltas(v, ready2send, versionPrepared)
+						//ready2send, versionPrepared, mapDeltaAll = getCompressableDelta(mapDeltaAll, ready2send, versionSent, versionPrepared)
 					}
 				}
 			case _ = <-timeFuse:
 				log.Criticalf("Merger brokenFuseScan DB %d starting retry", db)
 				vscan = make(chan reader.VersionData)
 				state = initialSendScan
+				ready2send, versionPrepared = nil, 0
+				//ready2send, versionPrepared = mergeDeltas(v, ready2send, versionPrepared)
 			}
 		case initialWaitScanWithDeltas:
 			select {
@@ -361,9 +363,11 @@ func KVPullMerger(db int, stop <-chan int,
 				log.Infof("Stop requested in state %d in DB %d - %t : %d", state, db, ok, v)
 				return
 			case v := <-ind:
-				mapDeltaAll = AppendVersionWithSort(mapDeltaAll, v)
+				ready2send, versionPrepared = mergeDeltas(v, ready2send, versionPrepared)
+				//mapDeltaAll = AppendVersionWithSort(mapDeltaAll, v)
 			case s := <-vscan:
-				mapDeltaAll = AppendVersionWithSort(mapDeltaAll, s)
+				ready2send, versionPrepared = mergeDeltas(ready2send, &s, versionPrepared)
+				//				mapDeltaAll = AppendVersionWithSort(mapDeltaAll, s)
 				state = activeSendWaitDeltas
 				//close(vscan)
 			}
@@ -376,7 +380,7 @@ func KVPullMerger(db int, stop <-chan int,
 			case outc.Responses <- ready2send:
 				log.Infof("activeSendWaitDeltas DB %d Sent data for version %d -> %d", db, versionSent, versionPrepared)
 				state = activeWaitDeltas
-				versionSent = versionPrepared
+				//versionSent = versionPrepared
 				mapDeltaAll = ResetVersionCollection(mapDeltaAll)
 			case v := <-ind: // Received delta
 				log.Infof("DB activeSendWaitDeltas/%d Received delta for version %d -> %d", db, v.DeltaFor, v.Version)
@@ -384,8 +388,8 @@ func KVPullMerger(db int, stop <-chan int,
 					mapDeltaAll = append([]reader.VersionData(nil), v)
 					state = brokenInitialScanDelta
 					reliableDelta = 0
-					ready2send, versionPrepared = updateLatestVersion(v, versionSent)
-					mapDeltaAll = nil
+					ready2send, versionPrepared = updateLatestVersion(v, versionPrepared)
+					//mapDeltaAll = nil
 
 				} else {
 					state = initialWaitScanWithDeltas
