@@ -378,10 +378,10 @@ func KVPullMerger(db int, stop <-chan int,
 				log.Infof("activeSendWaitDeltas Stop requested in state %d in DB %d - %t : %d", state, db, ok, v)
 				return
 			case outc.Responses <- ready2send:
-				log.Infof("activeSendWaitDeltas DB %d Sent data for version %d -> %d", db, versionSent, versionPrepared)
+				log.Infof("activeSendWaitDeltas DB %d Sent data for version %d", db, versionPrepared)
 				state = activeWaitDeltas
 				//versionSent = versionPrepared
-				mapDeltaAll = ResetVersionCollection(mapDeltaAll)
+				//mapDeltaAll = ResetVersionCollection(mapDeltaAll)
 			case v := <-ind: // Received delta
 				log.Infof("DB activeSendWaitDeltas/%d Received delta for version %d -> %d", db, v.DeltaFor, v.Version)
 				if v.DeltaFor == 0 { // Received not delta but snapshot
@@ -445,8 +445,8 @@ func KVPullMerger(db int, stop <-chan int,
 				if ok {
 					//					close(vscan)
 					state = activeSendWaitDeltas
-					mapDeltaAll = append([]reader.VersionData(nil), s)
-					ready2send, versionPrepared = updateLatestVersion(s, versionSent)
+					//mapDeltaAll = append([]reader.VersionData(nil), s)
+					ready2send, versionPrepared = updateLatestVersion(&s, versionPrepared)
 
 				}
 			}
