@@ -1,8 +1,6 @@
 package main
 
 import (
-	"bytes"
-	"github.com/msinev/replicator/compressor"
 	"github.com/msinev/replicator/jsonjackson"
 	"github.com/msinev/replicator/webpusher/reader"
 	"sort"
@@ -156,88 +154,48 @@ func sendVersionCompression(rq *DrainRequest) uint64 {
 
 var TFALSE = false
 
-func mergeDeltas(newDeltas []*reader.VersionData,
-	prevDelta *reader.VersionData,
-	isent uint64, iprepared uint64) (*reader.VersionData,
-	uint64,
-	*[]reader.VersionData) {
+func mergeDeltas(newDeltas *reader.VersionData,
+	prevDelta *reader.VersionData) *reader.VersionData {
+	c := 0
 
-	log.Debugf("mergingDeltas data length %d (%d -> %d)", len(deltas), isent, iprepared)
-	sent := isent
-
-	// TODO: make it merge deltas for optimisation
-
-	istart := -1
-	for i, c := range deltas {
-		if sent > 0 && c.Version <= sent {
-			continue
-		}
-
-		if istart < 0 || c.DeltaFor == 0 {
-			istart = i
-			sent = c.Version
-		}
+	if newDeltas != nil {
+		c += len(newDeltas.VersionData)
 	}
 
-	if istart < 0 || len(deltas) <= istart-1 {
-		log.Critical("empty data set for sending - possibly internal algorithm error")
-		return prev, iprepared, deltas
+	if prevDelta != nil {
+		c += len(prevDelta.VersionData)
 	}
 
-	actualRange := deltas[istart:]
-
-	if len(actualRange) == 1 {
-		kvbuf := make([]*sendrecv.Msg_SendValues, 0, len(actualRange[0].VersionData))
-		for _, c := range actualRange[0].VersionData {
-			kvbuf = append(kvbuf, c)
-		}
-		var vMsg sendrecv.Msg
-
-		if actualRange[0].DeltaFor == 0 {
-			vMsg = sendrecv.Msg{Vals: kvbuf}
-		} else {
-			vMsg = sendrecv.Msg{Vals: kvbuf, Reset_: &TFALSE}
-		}
-
-		bbuf := new(bytes.Buffer)
-		writePB(&vMsg, bbuf)
-		log.Debugf("Uncompressed length %d for %d keys in a group", bbuf.Len(), len(kvbuf))
-
-		return &compressor.CompressableData{
-			Datatype: 0,
-			Data:     bbuf.Bytes(),
-		}, actualRange[0].Version, deltas
+	if c == 0 {
+		return prevDelta
 	}
 
-	log.Infof("Merging %d deltas", len(actualRange))
-	mmap := make(map[string]*sendrecv.Msg_SendValues)
-
-	var version uint64
-	plainsum := 0
-	for _, arv := range actualRange {
-		version = arv.Version
-		plainsum = plainsum + len(arv.VersionData)
-		for _, c := range arv.VersionData {
-			mmap[*c.Key] = c
+	pkmap := make(map[string]reader.PKVData, c)
+	if prevDelta != nil {
+		for _, v := range prevDelta.VersionData {
+			pkmap[v.Key] = v
 		}
 	}
 
-	kvbuf := make([]*sendrecv.Msg_SendValues, 0, len(mmap))
-
-	for _, c := range mmap {
-		kvbuf = append(kvbuf, c)
+	if newDeltas != nil {
+		for _, v := range newDeltas.VersionData {
+			pkmap[v.Key] = v
+		}
 	}
 
-	vMsg := sendrecv.Msg{Vals: kvbuf}
-	bbuf := new(bytes.Buffer)
-	writePB(&vMsg, bbuf)
+	newdata := make([]reader.PKVData, len(pkmap))
+	n := 0
+	for _, v := range pkmap {
+		newdata[n] = v
+		n++
+	}
 
-	log.Debugf("Uncompressed length %d for %d/%d keys in %d groups", bbuf.Len(), plainsum, len(kvbuf), len(actualRange))
-
-	return &compressor.CompressableData{
-		Datatype: 0,
-		Data:     bbuf.Bytes(),
-	}, version, deltas
+	return &reader.VersionData{
+		DB:          prevDelta.DB,
+		Version:     prevDelta.Version,
+		DeltaFor:    newDeltas.Version,
+		VersionData: newdata,
+	}
 }
 
 func updateLatestVersion(vdata *reader.VersionData, isent uint64) (*reader.VersionData, uint64) {
