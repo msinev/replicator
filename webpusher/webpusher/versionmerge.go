@@ -188,6 +188,9 @@ func mergeDeltas(newDeltas *reader.VersionData, prevDelta *reader.VersionData, p
 		newdata[n] = v
 		n++
 	}
+	sort.Slice(newdata, func(i, j int) bool {
+		return newdata[i].Key < newdata[j].Key
+	})
 
 	return &reader.VersionData{
 		DB:          prevDelta.DB,
@@ -373,32 +376,35 @@ func KVPullMerger(db int, stop <-chan int,
 			}
 
 		case activeSendWaitDeltas:
-			select {
-			case v, ok := <-stop:
-				log.Infof("activeSendWaitDeltas Stop requested in state %d in DB %d - %t : %d", state, db, ok, v)
-				return
-			case outc.Responses <- ready2send:
-				log.Infof("activeSendWaitDeltas DB %d Sent data for version %d", db, versionPrepared)
-				state = activeWaitDeltas
-				//versionSent = versionPrepared
-				//mapDeltaAll = ResetVersionCollection(mapDeltaAll)
-			case v := <-ind: // Received delta
-				log.Infof("DB activeSendWaitDeltas/%d Received delta for version %d -> %d", db, v.DeltaFor, v.Version)
-				if v.DeltaFor == 0 { // Received not delta but snapshot
-					mapDeltaAll = append([]reader.VersionData(nil), v)
-					state = brokenInitialScanDelta
-					reliableDelta = 0
-					ready2send, versionPrepared = updateLatestVersion(v, versionPrepared)
-					//mapDeltaAll = nil
+			if outc == nil {
+				select {
+				case v, ok := <-stop:
+					log.Infof("activeSendWaitDeltas Stop requested in state %d in DB %d - %t : %d", state, db, ok, v)
+					return
+				case outc = <-ssr:
+					log.Infof("activeSendWaitDeltas DB %d Sent data for version %d", db, versionPrepared)
+					state = activeWaitDeltas
+					//versionSent = versionPrepared
+					//mapDeltaAll = ResetVersionCollection(mapDeltaAll)
+				case v := <-ind: // Received delta
+					log.Infof("DB activeSendWaitDeltas/%d Received delta for version %d -> %d", db, v.DeltaFor, v.Version)
+					if v.DeltaFor == 0 { // Received not delta but snapshot
+						//mapDeltaAll = append([]reader.VersionData(nil), v)
+						state = brokenInitialScanDelta
+						reliableDelta = 0
+						ready2send, versionPrepared = updateLatestVersion(v, versionPrepared)
+						//mapDeltaAll = nil
 
-				} else {
-					state = initialWaitScanWithDeltas
-					if versionPrepared < v.Version {
-						mapDeltaAll = append(mapDeltaAll, v)
-						ready2send, versionPrepared, mapDeltaAll = getCompressableDelta(mapDeltaAll, ready2send, versionSent, versionPrepared)
+					} else {
+						state = initialWaitScanWithDeltas
+						if versionPrepared < v.Version {
+							//						mapDeltaAll = append(mapDeltaAll, v)
+							//						ready2send, versionPrepared, mapDeltaAll = getCompressableDelta(mapDeltaAll, ready2send, versionSent, versionPrepared)
+							ready2send, versionPrepared = mergeDeltas(ready2send, v, versionPrepared)
+						}
 					}
-				}
 
+				}
 			}
 		case activeWaitDeltas:
 			select {
@@ -412,13 +418,16 @@ func KVPullMerger(db int, stop <-chan int,
 					// log.Infof("DB %d full DB as delta version", state, db, ok, v)
 					// no need to scan
 					state = activeSendWaitDeltas
-					mapDeltaAll = append([]reader.VersionData(nil), v)
-					ready2send, versionPrepared, mapDeltaAll = getCompressableDelta(mapDeltaAll, ready2send, versionSent, versionPrepared)
+					//					mapDeltaAll = append([]reader.VersionData(nil), v)
+					ready2send, versionPrepared = updateLatestVersion(v, versionPrepared)
+					//					ready2send, versionPrepared, mapDeltaAll = getCompressableDelta(mapDeltaAll, ready2send, versionSent, versionPrepared)
 				} else {
 					state = initialWaitScanWithDeltas
 					if versionPrepared < v.Version {
-						mapDeltaAll = append(mapDeltaAll, v)
-						ready2send, versionPrepared, mapDeltaAll = getCompressableDelta(mapDeltaAll, ready2send, versionSent, versionPrepared)
+						//						mapDeltaAll = append(mapDeltaAll, v)
+						//						ready2send, versionPrepared, mapDeltaAll = getCompressableDelta(mapDeltaAll, ready2send, versionSent, versionPrepared)
+						ready2send, versionPrepared = mergeDeltas(ready2send, v, versionPrepared)
+
 					} else {
 						log.Warningf("DB %d Ignoring delta update %d -> %d for prepared version %d", db, v.DeltaFor, v.Version, versionPrepared)
 					}
@@ -438,8 +447,8 @@ func KVPullMerger(db int, stop <-chan int,
 				log.Infof("Stop requested in state %d in DB %d - %t : %d", state, db, ok, v)
 				return
 			case v := <-ind:
-				mapDeltaAll = append(mapDeltaAll, v)
-			case outc <- *ready2send:
+				ready2send, versionPrepared = mergeDeltas(ready2send, v, versionPrepared)
+			//case outc <- *ready2send:
 
 			case s, ok := <-vscan:
 				if ok {
@@ -461,6 +470,6 @@ func KVPullMerger(db int, stop <-chan int,
 	//inc := client.kvPartSink[db] -- remove channels from client's structure after debugging
 	//outc :=client.msgSink[db]
 
-	defer close(outc)
+	//	defer close(outc)
 	defer log.Infof("Closing merge channel for %d pipe", db)
 }

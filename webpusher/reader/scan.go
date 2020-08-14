@@ -142,6 +142,10 @@ func (kv *KVData) Write(i *jsonjackson.JSONWriter) {
 		}
 	}
 
+	if kv.TTL != nil {
+		i.IntField("t", int64(*kv.TTL))
+	}
+
 	i.EndObject()
 }
 

@@ -32,6 +32,13 @@ func NewBuilder(wb io.Writer) (w *JSONWriter) {
 
 }
 
+func (w2 *JSONWriter) Reset() *JSONWriter {
+	w2.close = nil
+	w2.next = false
+	return w2
+
+}
+
 func (w *JSONWriter) Attach(wb io.Writer) {
 	w.w = wb
 }
