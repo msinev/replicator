@@ -4,7 +4,9 @@ import (
 	"fmt"
 	"github.com/codebear4/ttlcache"
 	"github.com/msinev/replicator/webpusher/reader"
+	"math/rand"
 	"net/http"
+	"sync"
 	"time"
 )
 
@@ -43,6 +45,22 @@ func initTTLCache() {
 	//	result := cache.Remove("key")
 }
 
+var letterRunes = []rune("0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ")
+var rnd rand.Rand
+
+func RandStringRunes(n int) string {
+	b := make([]rune, n)
+	for i := range b {
+		b[i] = letterRunes[rnd.Intn(len(letterRunes))]
+	}
+	return string(b)
+}
+
+func init() {
+	initTTLCache()
+	rand.New(rand.NewSource(time.Now().UnixNano()))
+}
+
 func reply(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/html")
 
@@ -53,24 +71,8 @@ func reply(w http.ResponseWriter, r *http.Request) {
 
 func options(w http.ResponseWriter, r *http.Request) {
 	//
-	r.ParseForm()
-	ids := r.Form.Get("id")
-	c, exist := ClientCache.Get(ids)
-	if exist {
-		se := &SyncRequest{}
-		se.Release.Add(1)
-		select {
-		case c.(WebClient).ProcessAPI <- se:
-			se.Release.Wait()
-		default:
-			w.WriteHeader(http.StatusConflict)
-			w.Write([]byte("Session ID " + ids + " already serving request wait or close"))
-		}
-	} else {
-		w.WriteHeader(http.StatusNotFound)
-		w.Write([]byte("Session ID " + ids + " not found"))
-	}
-	//
+	w.WriteHeader(http.StatusNotImplemented)
+	w.Write([]byte("Not supported yet"))
 }
 
 func sockets(w http.ResponseWriter, r *http.Request) {
@@ -95,14 +97,17 @@ func sockets(w http.ResponseWriter, r *http.Request) {
 	//
 }
 
-func delta(w http.ResponseWriter, r *http.Request) {
+func getDelta(w http.ResponseWriter, r *http.Request) {
 	//
 	r.ParseForm()
 	ids := r.Form.Get("id")
+
 	c, exist := ClientCache.Get(ids)
 	if exist {
+
 		se := &SyncRequest{}
 		se.Release.Add(1)
+
 		select {
 		case c.(WebClient).ProcessAPI <- se:
 			se.Release.Wait()
@@ -110,10 +115,60 @@ func delta(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusConflict)
 			w.Write([]byte("Session ID " + ids + " already serving request wait or close"))
 		}
+
 	} else {
 		w.WriteHeader(http.StatusNotFound)
 		w.Write([]byte("Session ID " + ids + " not found"))
 	}
+	/*
+		jw := jsonjackson.NewBuilder(w)
+		jw.BeginArray()
+		jw.Str(ids)
+
+		defer jw.CloseAll()
+
+	*/
+	//
+}
+
+func startSession(w http.ResponseWriter, r *http.Request) {
+	//
+	r.ParseForm()
+	r.ParseForm()
+	ids := RandStringRunes(16)
+	log.Infof("New session %s started %s")
+	newWC := &WebClient{
+		Databases:      nil,
+		Readers:        nil,
+		Versions:       nil,
+		SESSID:         ids,
+		TerminateDone:  sync.Once{},
+		TSStart:        time.Now(),
+		Filter:         "",
+		ConnWS:         nil,
+		ProcessAPI:     nil,
+		KVPartSink:     nil,
+		Finished:       sync.WaitGroup{},
+		Control:        nil,
+		Alive:          nil,
+		TSSynced:       nil,
+		TSLatestUpdate: nil,
+		Stats:          ClientStats{},
+	}
+	newWC.Init()
+	ClientCache.Set(ids, newWC)
+
+	se := &SyncRequest{}
+	se.Release.Add(1)
+	select {
+	case newWC.ProcessAPI <- se:
+		se.Release.Wait()
+	default:
+		w.WriteHeader(http.StatusConflict)
+		w.Write([]byte("Session ID " + ids + " already serving request wait or close"))
+	}
+	//
+
 	/*
 		jw := jsonjackson.NewBuilder(w)
 		jw.BeginArray()

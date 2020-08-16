@@ -94,7 +94,6 @@ func writeJSONKV(vdata *reader.VersionData, wrt *jsonjackson.JSONWriter) {
 	for _, msg := range vdata.VersionData {
 		msg.Write(wrt)
 	}
-
 }
 
 func sendVersionSnapshot(cli WebClient, request *SyncRequest) {
@@ -109,9 +108,11 @@ func sendVersionSnapshot(cli WebClient, request *SyncRequest) {
 
 	drq := &DrainRequest{vdata}
 	jw.BeginArray()
+
 	for _, v := range cli.Readers {
 		v <- drq
 	}
+
 	for i := 0; i < len(cli.Readers); i++ {
 		vi := <-vdata
 		writeJSONKV(&vi, jw)

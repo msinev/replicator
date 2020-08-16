@@ -28,7 +28,8 @@ func mainServerHTTPLoop(so []reader.ServerOptions, bind string, waitTermination 
 		fullCopy(w, r, scansrc, deltasrc)
 	})
 
-	r.HandleFunc(URL_DELTA, delta)
+	r.HandleFunc(URL_DELTA, getDelta)
+	r.HandleFunc(URL_SYNC, startSession)
 	r.HandleFunc(URL_SOCKET, sockets)
 	r.HandleFunc(URL_OPTIONS, options)
 

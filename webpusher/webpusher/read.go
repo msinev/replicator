@@ -52,3 +52,7 @@ type WebClient struct {
 	//	SyncVolume []int64
 	Stats ClientStats
 }
+
+func (i *WebClient) Init() {
+
+}
