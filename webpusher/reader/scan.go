@@ -110,6 +110,51 @@ func uselessTTL(ttl int64) bool {
 	return ttl == -2 || ttl >= 0 && ttl < 100
 }
 
+type KVSubscriber struct {
+}
+
+func KVSplitter(Subscriber <-chan chan<- *KVData, Source <-chan *KVData, Abort chan<- int) {
+	var subscribers map[int]chan<- *KVData
+	defer close(Abort)
+	count := 0
+	for {
+		select {
+		case newMsg, ok := <-Source:
+			{
+				if !ok {
+					break
+				}
+
+				var closemeset []int
+				for k, v := range subscribers {
+					select {
+					case v <- newMsg:
+						log.Infof("Sending messages to %d subscriber", k)
+					default:
+						closemeset = append(closemeset, k)
+					}
+				}
+
+				for _, v := range closemeset {
+					close(subscribers[v])
+					log.Infof("Closing %d subscriber", v)
+				}
+				closemeset = nil
+
+			}
+		case newConsumer, ok := <-Subscriber:
+			if !ok {
+				break
+			}
+			count++
+			log.Infof("Appending new %d consumer", count)
+			subscribers[count] = newConsumer
+		}
+
+	}
+
+}
+
 const versionKey = "version"
 const versionKeyList = "version:"
 
