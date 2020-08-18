@@ -131,7 +131,7 @@ func getDelta(w http.ResponseWriter, r *http.Request) {
 	//
 }
 
-func startSession(w http.ResponseWriter, r *http.Request) {
+func startSession(w http.ResponseWriter, r *http.Request, scan []ScanReader, delta []reader.DeltaReceiver) {
 	//
 	r.ParseForm()
 	r.ParseForm()
@@ -155,6 +155,7 @@ func startSession(w http.ResponseWriter, r *http.Request) {
 		TSLatestUpdate: nil,
 		Stats:          ClientStats{},
 	}
+
 	newWC.Init()
 	ClientCache.Set(ids, newWC)
 
