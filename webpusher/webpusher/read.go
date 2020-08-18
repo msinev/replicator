@@ -14,11 +14,15 @@ type ClientStats struct {
 }
 
 type WebClient struct {
-	// static
-	Databases []int
-	Readers   []chan<- *DrainRequest
-	Versions  []int64
-	SESSID    string
+	// static global options
+	Databases     []reader.ServerOptions
+	ScanReader    []ScanReader
+	DeltaReceiver []reader.DeltaReceiver
+	DBIndex       map[int]int
+	//
+	//Readers   []chan<- *DrainRequest
+	//Versions  []int64
+	SESSID string
 
 	//Info      map[string]string
 	//Handshake map[string]string
@@ -29,8 +33,8 @@ type WebClient struct {
 	TSStart time.Time
 	Filter  string
 
-	ConnWS     *websocket.Conn
-	ProcessAPI chan *SyncRequest
+	ConnWS *websocket.Conn
+	//ProcessAPI chan *SyncRequest
 
 	//  static pipeline - no need to keep just for debugging
 	//-- remove channels from client's structure after debugging

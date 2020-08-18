@@ -131,22 +131,25 @@ func getDelta(w http.ResponseWriter, r *http.Request) {
 	//
 }
 
-func startSession(w http.ResponseWriter, r *http.Request, scan []ScanReader, delta []reader.DeltaReceiver) {
-	//
-	r.ParseForm()
+func startSession(w http.ResponseWriter, r *http.Request, scan []ScanReader, delta []reader.DeltaReceiver, so []reader.ServerOptions, dbi map[int]int) {
+	//call from lambda
 	r.ParseForm()
 	ids := RandStringRunes(16)
 	log.Infof("New session %s started %s")
+
 	newWC := &WebClient{
-		Databases:      nil,
-		Readers:        nil,
-		Versions:       nil,
-		SESSID:         ids,
-		TerminateDone:  sync.Once{},
-		TSStart:        time.Now(),
-		Filter:         "",
-		ConnWS:         nil,
-		ProcessAPI:     nil,
+		Databases:     so,
+		ScanReader:    scan,
+		DeltaReceiver: delta,
+		DBIndex:       dbi,
+		//Readers:        nil,
+		//Versions:       nil,
+		SESSID:        ids,
+		TerminateDone: sync.Once{},
+		TSStart:       time.Now(),
+		Filter:        r.Form.Get("F"),
+		ConnWS:        nil,
+		//ProcessAPI:     nil,
 		KVPartSink:     nil,
 		Finished:       sync.WaitGroup{},
 		Control:        nil,
@@ -195,8 +198,8 @@ func closeClient(w http.ResponseWriter, r *http.Request, scan []ScanReader) {
 	}
 }
 
-func fullCopy(w http.ResponseWriter, r *http.Request, scan []ScanReader, delta []reader.DeltaReceiver) {
-	//
+func fullCopy(w http.ResponseWriter, r *http.Request, scan []ScanReader, delta []reader.DeltaReceiver) { //
+	//call from lambda
 	r.ParseForm()
 	ids := r.Form.Get("id")
 	c, exist := ClientCache.Get(ids)

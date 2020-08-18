@@ -17,6 +17,10 @@ var httpStopper sync.Once
 
 func mainServerHTTPLoop(so []reader.ServerOptions, bind string, waitTermination bool) {
 	addr := *serverAddress
+	dbIndex := make(map[int]int, len(so))
+	for idb := 0; idb < len(so); idb++ {
+		dbIndex[so[idb].DB] = idb
+	}
 	log.Info("Listening http at " + addr)
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt)
@@ -24,14 +28,19 @@ func mainServerHTTPLoop(so []reader.ServerOptions, bind string, waitTermination 
 	scansrc, deltasrc := InitReaders(so)
 	r := mux.NewRouter()
 	r.HandleFunc("/", reply)
+
 	r.HandleFunc(URL_SYNC, func(w http.ResponseWriter, r *http.Request) {
 		fullCopy(w, r, scansrc, deltasrc)
 	})
 
-	r.HandleFunc(URL_DELTA, getDelta)
-	r.HandleFunc(URL_SYNC, func(w http.ResponseWriter, r *http.Request) {
-		startSession(w, r, scansrc, deltasrc)
+	r.HandleFunc(URL_DELTA, func(w http.ResponseWriter, r *http.Request) {
+		getDelta(w, r)
 	})
+
+	r.HandleFunc(URL_SYNC, func(w http.ResponseWriter, r *http.Request) {
+		startSession(w, r, scansrc, deltasrc, so, dbIndex)
+	})
+
 	r.HandleFunc(URL_SOCKET, sockets)
 	r.HandleFunc(URL_OPTIONS, options)
 
