@@ -81,20 +81,20 @@ func splitterWorkerStr(subs *PubSubStr, source <-chan string, name string) {
 }
 
 type PubSubVersion struct {
-	subscribers map[chan<- VersionData]string
+	subscribers map[chan<- *VersionData]string
 	mutex       sync.Mutex
 	state       int
 }
 
-func (subs *PubSubVersion) InitPubSub(source <-chan VersionData, sname string) {
-	subs.subscribers = make(map[chan<- VersionData]string)
+func (subs *PubSubVersion) InitPubSub(source <-chan *VersionData, sname string) {
+	subs.subscribers = make(map[chan<- *VersionData]string)
 	subs.state = -1
 	//subs.mutex=&sync.Mutex{}
 	subs.AddSource(source, sname)
 }
 
 // Adds source in M to N sources to drains
-func (subs *PubSubVersion) AddSource(source <-chan VersionData, sname string) {
+func (subs *PubSubVersion) AddSource(source <-chan *VersionData, sname string) {
 	subs.mutex.Lock()
 	if subs.state == -1 {
 		go splitterWorkerVersion(subs, source, sname)
@@ -110,14 +110,14 @@ func (subs *PubSubVersion) AddSource(source <-chan VersionData, sname string) {
 	log.Info("Started pubsub versio")
 }
 
-func (subs *PubSubVersion) AddSubscriber(subscriber chan<- VersionData, name string) {
+func (subs *PubSubVersion) AddSubscriber(subscriber chan<- *VersionData, name string) {
 	subs.mutex.Lock()
 	subs.subscribers[subscriber] = name
 	subs.mutex.Unlock()
 }
 
 //Internal function to run subscription message splitter
-func splitterWorkerVersion(subs *PubSubVersion, source <-chan VersionData, name string) {
+func splitterWorkerVersion(subs *PubSubVersion, source <-chan *VersionData, name string) {
 	log.Infof("Started pubsub version goroutine for %s", name)
 	defer log.Infof("Terminated pubsub version goroutine for %s", name)
 

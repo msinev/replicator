@@ -2,7 +2,6 @@ package main
 
 import (
 	"github.com/gorilla/websocket"
-	"github.com/msinev/replicator/control"
 	"github.com/msinev/replicator/webpusher/reader"
 	"sync"
 	"time"
@@ -34,12 +33,14 @@ type WebClient struct {
 	Filter  string
 
 	ConnWS *websocket.Conn
+	//StopChan <-chan int
 	//ProcessAPI chan *SyncRequest
 
 	//  static pipeline - no need to keep just for debugging
 	//-- remove channels from client's structure after debugging
 	//	KVFullScan   []chan []Reader.PKVData
-	KVPartSink []chan reader.VersionData
+	//KVPartSink []chan reader.VersionData
+	Drains []chan *DrainRequest
 
 	//
 	//VerSyncAlert []chan int64
@@ -47,7 +48,7 @@ type WebClient struct {
 	//	watchers
 	// Control
 	Finished sync.WaitGroup
-	Control  chan control.ControlMessage
+	//Control  chan control.ControlMessage
 
 	Alive chan int // never being sent just close on quit
 
@@ -57,6 +58,42 @@ type WebClient struct {
 	Stats ClientStats
 }
 
-func (i *WebClient) Init() {
+func (client *WebClient) Init() {
+	client.Alive = make(chan int)
+	client.Drains = make([]chan *DrainRequest, len(client.Databases))
+
+	for rk, rv := range client.Databases {
+		//	if (DBSPlain[rv] == "+") {
+		log.Debugf("Starting DB %d -> chan", rv)
+		//req := client.ScanReader[rk].data
+		//controlStop := make(chan int64)
+		stage2 := make(chan ScanRequest)
+		stage2a := client.DeltaReceiver[rk].SubscribeVersions(client.SESSID) // Subscribe to updates
+
+		//		client.KVFullScan[rk] = stage1   // for debug
+		//client.KVPartSink[rk] = stage2   // for debug
+		//client.MsgSink[rk] = stage3      // for debug
+		//client.DataBreakers[rk] = stage4 // for debug
+		//client.BlockDrains[rk] = stage5  // for debug
+		//qosDrains[rk] = stage5
+		/*
+		   func KVMerger(db int, stop <-chan int64, outrqc chan<- <-chan Reader.VersionData,
+		   	ind chan Reader.VersionData, outc chan Compressor.CompressableData) {
+		   			rqVersion
+		*/
+		//rqVersion := int64(0)
+		KVPullMerger(rv.DB, client.Alive, stage2, stage2a, client.Drains[rk], client.SESSID)
+
+		//go Reader.Scan(rv, stage2, &client.DBReader) moved to Init
+		//		go Reader.KVScanAccumulator(rk, stage1,  stage2)
+
+		//go clientserver.ServerDataCompressor(client, rk, GZIPCompression, stage3, stage4)
+		//go clientserver.ServerDataStreaming(client, rk, stage4, stage5)
+		//		} else {
+
+		//	}
+		//		go scan(rv, client.kvPartSink[rk])
+
+	}
 
 }

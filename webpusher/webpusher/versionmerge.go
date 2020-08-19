@@ -109,11 +109,11 @@ func sendVersionSnapshot(cli WebClient, request *SyncRequest) {
 	drq := &DrainRequest{vdata}
 	jw.BeginArray()
 
-	for _, v := range cli.Readers {
+	for _, v := range cli.Drains {
 		v <- drq
 	}
 
-	for i := 0; i < len(cli.Readers); i++ {
+	for i := 0; i < len(cli.Drains); i++ {
 		vi := <-vdata
 		writeJSONKV(&vi, jw)
 	}
@@ -213,7 +213,7 @@ func KVPullMerger(db int, stop <-chan int,
 	outrqc chan<- ScanRequest,
 	ind <-chan *reader.VersionData,
 	ssr <-chan *DrainRequest,
-) {
+	clientID string) {
 
 	// Merging
 	//state:=0 -- version not defined

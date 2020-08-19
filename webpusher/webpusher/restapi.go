@@ -150,9 +150,9 @@ func startSession(w http.ResponseWriter, r *http.Request, scan []ScanReader, del
 		Filter:        r.Form.Get("F"),
 		ConnWS:        nil,
 		//ProcessAPI:     nil,
-		KVPartSink:     nil,
-		Finished:       sync.WaitGroup{},
-		Control:        nil,
+		//KVPartSink:     nil,
+		Finished: sync.WaitGroup{},
+		// Control:        nil,
 		Alive:          nil,
 		TSSynced:       nil,
 		TSLatestUpdate: nil,
@@ -161,16 +161,18 @@ func startSession(w http.ResponseWriter, r *http.Request, scan []ScanReader, del
 
 	newWC.Init()
 	ClientCache.Set(ids, newWC)
+	/*
+		se := &SyncRequest{}
+		se.Release.Add(1)
+		select {
+		case newWC.ProcessAPI <- se:
+			se.Release.Wait()
+		default:
+			w.WriteHeader(http.StatusConflict)
+			w.Write([]byte("Session ID " + ids + " already serving request wait or close"))
+		}
 
-	se := &SyncRequest{}
-	se.Release.Add(1)
-	select {
-	case newWC.ProcessAPI <- se:
-		se.Release.Wait()
-	default:
-		w.WriteHeader(http.StatusConflict)
-		w.Write([]byte("Session ID " + ids + " already serving request wait or close"))
-	}
+	*/
 	//
 
 	/*

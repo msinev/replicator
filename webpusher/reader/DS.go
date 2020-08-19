@@ -36,7 +36,7 @@ type DeltaReceiver struct {
 	DBtype       int
 	StartVersion uint64
 	//
-	DrainVer <-chan VersionData // for final database replication
+	DrainVer <-chan *VersionData // for final database replication
 	//
 	//
 	NotifyVer chan<- string // for versionable database replication
@@ -47,9 +47,9 @@ type DeltaReceiver struct {
 	DrainString chan<- string // for non-versionless databases replication
 }
 
-func (r *DeltaReceiver) SubscribeVersions(sname string) <-chan VersionData {
+func (r *DeltaReceiver) SubscribeVersions(sname string) <-chan *VersionData {
 
-	ch := make(chan VersionData, 1)
+	ch := make(chan *VersionData, 1)
 	r.pubsubver.AddSubscriber(ch, sname)
 
 	return ch
@@ -71,7 +71,7 @@ func (r *DeltaReceiver) Init(so ServerOptions, dbt int, ver uint64) {
 	r.StartVersion = ver
 
 	ch2 := make(chan string)
-	ch1 := make(chan VersionData)
+	ch1 := make(chan *VersionData)
 	r.DrainVer = ch1
 
 	r.pubsubver = &PubSubVersion{}

@@ -200,7 +200,7 @@ func (kv *KVData) Write(i *jsonjackson.JSONWriter) {
 	i.EndObject()
 }
 
-func ReadVersionDelta(so ServerOptions, start <-chan string, out chan<- VersionData, initVersion uint64) { //Delta reader
+func ReadVersionDelta(so ServerOptions, start <-chan string, out chan<- *VersionData, initVersion uint64) { //Delta reader
 	db := so.DB
 	/*
 		if(nextVersion==nowVersion) {
@@ -319,7 +319,7 @@ func ReadVersionDelta(so ServerOptions, start <-chan string, out chan<- VersionD
 					nextVersion = nextVersionCheck
 
 				} // for
-				out <- VersionData{DeltaFor: fromVersion, Version: nextVersion, VersionData: existingKeys}
+				out <- &VersionData{DeltaFor: fromVersion, Version: nextVersion, VersionData: existingKeys}
 				log.Infof("Sent version update %d -> %d %d pairs", fromVersion, nextVersion, len(existingKeys))
 			} else {
 				log.Infof("No changes in version %d", nextVersion)
