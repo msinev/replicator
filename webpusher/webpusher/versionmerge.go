@@ -96,29 +96,25 @@ func writeJSONKV(vdata *reader.VersionData, wrt *jsonjackson.JSONWriter) {
 	}
 }
 
-func sendVersionSnapshot(cli WebClient, request *SyncRequest) {
+func sendVersionSnapshot(client *WebClient, rq *SyncRequest, crq chan *reader.VersionData) {
 	/*	if vdata.Version <= isent {
 			return nil, isent
 		}
 	*/
-	defer request.Release.Done()
-	//bbuf := new(bytes.Buffer)
-	jw := jsonjackson.NewBuilder(request.Wr)
-	vdata := make(chan reader.VersionData, len(DBS))
-
-	drq := &DrainRequest{vdata}
+	defer rq.Release.Done()
+	ldrains := len(client.Drains)
+	for _, v := range client.Drains {
+		drainrq := &DrainRequest{Responses: crq}
+		v <- drainrq
+	}
+	jw := jsonjackson.NewBuilder(rq.Wr)
 	jw.BeginArray()
-
-	for _, v := range cli.Drains {
-		v <- drq
+	for i := 0; i < ldrains; i++ {
+		data := <-crq
+		writeJSONKV(data, jw)
 	}
-
-	for i := 0; i < len(cli.Drains); i++ {
-		vi := <-vdata
-		writeJSONKV(&vi, jw)
-	}
-
-	jw.CloseAll() // All just in case
+	jw.CloseAll()
+	rq.Release.Done()
 
 	//log.Infof("Uncompressed length %d!", bbuf.Len())
 	/*&JSONVersionData{

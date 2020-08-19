@@ -81,7 +81,9 @@ func sockets(w http.ResponseWriter, r *http.Request) {
 	ids := r.Form.Get("id")
 	c, exist := ClientCache.Get(ids)
 	if exist {
-		se := &SyncRequest{}
+		se := &SyncRequest{SyncType: 8,
+			Wr: w,
+		}
 		se.Release.Add(1)
 		select {
 		case c.(WebClient).ProcessAPI <- se:
@@ -105,7 +107,7 @@ func getDelta(w http.ResponseWriter, r *http.Request) {
 	c, exist := ClientCache.Get(ids)
 	if exist {
 
-		se := &SyncRequest{}
+		se := &SyncRequest{SyncType: 1, Wr: w}
 		se.Release.Add(1)
 
 		select {

@@ -59,7 +59,7 @@ type SyncRequest struct {
 }
 
 type DrainRequest struct {
-	Responses chan<- reader.VersionData
+	Responses chan<- *reader.VersionData
 	//ResponseDone sync.WaitGroup
 }
 

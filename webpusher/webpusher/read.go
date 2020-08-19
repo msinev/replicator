@@ -34,13 +34,14 @@ type WebClient struct {
 
 	ConnWS *websocket.Conn
 	//StopChan <-chan int
-	//ProcessAPI chan *SyncRequest
 
 	//  static pipeline - no need to keep just for debugging
 	//-- remove channels from client's structure after debugging
 	//	KVFullScan   []chan []Reader.PKVData
 	//KVPartSink []chan reader.VersionData
-	Drains []chan *DrainRequest
+
+	Drains     []chan *DrainRequest
+	ProcessAPI chan *SyncRequest
 
 	//
 	//VerSyncAlert []chan int64
@@ -56,6 +57,15 @@ type WebClient struct {
 	TSLatestUpdate []time.Time
 	//	SyncVolume []int64
 	Stats ClientStats
+}
+
+func (client *WebClient) drainSplitter() {
+	ldrains := len(client.Drains)
+	crq := make(chan *reader.VersionData, ldrains)
+	for rq := range client.ProcessAPI {
+
+		sendVersionSnapshot(client, rq, crq)
+	}
 }
 
 func (client *WebClient) Init() {
