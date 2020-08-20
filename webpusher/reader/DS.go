@@ -90,6 +90,32 @@ func (r *DeltaReceiver) Init(so ServerOptions, dbt int, ver uint64) {
 	}
 }
 
+func (r *DeltaReceiver) InitPlain(so ServerOptions, dbt int, RedisURL string) {
+	DB := so.DB
+	r.DB = DB
+	r.DBtype = dbt
+	r.StartVersion = 0
+
+	ch2 := make(chan string)
+	ch1 := make(chan *VersionData)
+	r.DrainVer = ch1
+
+	r.pubsubver = &PubSubVersion{}
+	r.pubsubver.InitPubSub(r.DrainVer, "RV "+strconv.Itoa(DB))
+
+	if dbt == 0 {
+		r.NotifyVer = ch2
+		go ReadPlainDelta(so, ch2, ch1) // start delta readers
+
+	} else {
+
+		r.pubsubstr = &PubSubStr{}
+		r.pubsubstr.InitPubSub(ch2, "RS "+strconv.Itoa(DB))
+		r.DrainString = ch2
+
+	}
+}
+
 func bySizeAndKey(a, b interface{}) int {
 	// Type assertion, program will panic if this is not respected
 	c1 := a.(KHV)

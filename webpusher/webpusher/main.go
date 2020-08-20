@@ -32,7 +32,7 @@ var serverAddress = flag.String("http", HTTP_HOST+":"+HTTP_PORT, "HTTP Server ad
 var urlSocket = flag.String("urlsocket", URL_SOCKET, "URL listen for sockets")
 var urlSync = flag.String("urlsync", URL_SOCKET, "URL listen for sync")
 var urlDelta = flag.String("urldelta", URL_SOCKET, "URL listen for deltas")
-var dbparam = flag.String("databases", "0", "List of databases like 5,0,3,8")
+var dbparam = flag.String("databases", "0", "List of databases like 0,3,8")
 var dbplain = flag.String("plaindb", "0", "List of version less databases like 3,8")
 var log = logging.MustGetLogger("WEB.PUSH")
 

@@ -1,10 +1,8 @@
 package main
 
 import (
-	"net/http"
-
 	"github.com/msinev/replicator/webpusher/reader"
-
+	"net/http"
 	"sync"
 	//	"RedisReplica/blockaggregator"
 	//	"net/http"
@@ -283,8 +281,9 @@ func InitReaders(so []reader.ServerOptions) ([]ScanReader, []reader.DeltaReceive
 		}
 		dbt := 0
 		if ok || !dbver {
-			log.Panic() // shall we panic ??
+			//log.Panic("No version in DB "+strconv.Itoa(db)) // shall we panic ??
 			// TODO fix subscription on plain DBs or missing versions
+			DBDeltaReaders[r].InitPlain(so[r], dbt, redisURL)
 			dbt = 1
 		} else {
 			DBDeltaReaders[r].Init(so[r], dbt, ver)
@@ -305,7 +304,7 @@ func InitReaders(so []reader.ServerOptions) ([]ScanReader, []reader.DeltaReceive
 }
 
 /*
-func InitScanReaderWithNoVersionCheck(dbindex int) (<-chan Reader.VersionData, chan<- uint64) {
+func InitScanReaderWithNoVersionCheck(dbindex int) (<-chan reader.VersionData, chan<- uint64) {
 	log.Info("Initializing readers")
 
 	InitReaders()
@@ -313,10 +312,10 @@ func InitScanReaderWithNoVersionCheck(dbindex int) (<-chan Reader.VersionData, c
 	//chanblockdb:=make([]chan []string, ldbs)
 	//DBDeltaReaders=make([]Reader.DeltaReceiver, ldbs)
 
-	versionchan := make(chan Reader.VersionData)
+	versionchan := make(chan reader.VersionData)
 	controlchan := make(chan uint64)
 	keyblock := make(chan []string)
-	kvdata := make(chan []Reader.PKVData)
+	kvdata := make(chan []reader.PKVData)
 	//for k,_:= range DBS {
 	rs := DBDeltaReaders[dbindex].SubscribeKeys(remote)
 
@@ -340,6 +339,7 @@ func InitScanReaderWithNoVersionCheck(dbindex int) (<-chan Reader.VersionData, c
 	return versionchan, controlchan
   }
 */
+
 func scanReaderWithVersionCheckProcessor(so reader.ServerOptions, data <-chan ScanRequest) {
 	db := so.DB
 	defer log.Debugf("Exiting scan for dbID %d", db)
