@@ -360,7 +360,7 @@ func ReadVersionDelta(so ServerOptions, start <-chan string, out chan<- *Version
 func ReadPlainDelta(so ServerOptions, start <-chan string, out chan<- *VersionData) { //Delta reader
 	db := so.DB
 
-	fromVersion := 0
+	fromVersion := uint64(0)
 	checkStart := false
 
 	for {
