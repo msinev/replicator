@@ -17,7 +17,7 @@ func command_list(prefix string, pre []string) []string {
 		//		"append",
 		"del",
 		//		"evicted",
-		"expire",
+		//"expire",
 		//		"expired",
 		//		"hdel",
 		//		"hincrby",
@@ -69,6 +69,7 @@ func command_list(prefix string, pre []string) []string {
 	for _, v := range cmds {
 		pre = append(pre, prefix+v)
 	}
+	log.Info(pre)
 	return pre
 }
 
@@ -90,7 +91,7 @@ func command_list(prefix string, pre []string) []string {
 // onStart function is called after the channels are subscribed. The onMessage
 // function is called for each message.
 
-func listenPubSubChannels(ctx context.Context, redisServerAddr string,
+func ListenPubSubChannels(ctx context.Context, redisServerAddr string,
 	onStart func() error,
 	onMessage func(channel string, data []byte) error,
 	channels []string) error {

@@ -14,10 +14,11 @@ func serverAddr() string {
 
 func TestPlainDB(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
+	t.Log("Send REDIS commands now!\nChange value My to exit")
 
 	db := 0
 	t.Logf("Using %s DB %d for testing", serverAddr(), db)
-	err := listenPubSubChannels(ctx,
+	err := ListenPubSubChannels(ctx,
 		serverAddr(),
 		func() error {
 			// The start callback is a good place to backfill missed
