@@ -357,85 +357,16 @@ func ReadVersionDelta(so ServerOptions, start <-chan string, out chan<- *Version
 
 }
 
-func ReadPlainDelta(so ServerOptions, start <-chan string, out chan<- *VersionData) { //Delta reader
-	db := so.DB
+func ReadPlainDelta(so ServerOptions, start <-chan []string, out chan<- *VersionData) { //Delta reader
+	keyschan := make(chan string)
+	listener := make(chan []string)
+	middle   := make(chan []PKVData)
 
+	go KeyUpdatePublisher(so.DB, listener, middle)
+	StringMerger(Subscriber chan<- []splitType, Source <-chan splitType)
 	fromVersion := uint64(0)
 	checkStart := false
-
-	for {
-
-		log.Debugf("DB %d started delta loop version %d", db, fromVersion)
-		if !checkStart {
-			sT := <-start
-			log.Debugf("!! DB  %d started delta after receiving mark %s ", db, sT)
-		} else {
-			log.Debugf("!! DB %d started delta repeat", db)
-		}
-		checkStart = false
-
-		chdone := make(chan uint64)
-
-		//
-		//		--- exec begin --
-		//
-		pool.ExecutorGo <- func(conn redis.Conn) error {
-			nowVersion := fromVersion
-			//initVersion
-
-			defer close(chdone)
-			log.Noticef("Retrive version starting from %d", nowVersion)
-			defer log.Noticef("Retrive version complete %d to %d", fromVersion, nowVersion)
-
-			_, err := conn.Do("SELECT", db)
-			if err != nil {
-				return err
-			}
-
-			nextVersion, err := redis.Uint64(conn.Do("GET", versionKey))
-			log.Noticef("Current next version %d", nextVersion)
-			//if nowVersion < nextVersion {
-			//newKeys := make(map[string]uint64)
-			//existingKeyIndexes := make(map[string]int)
-			//	existingKeys := make([]PKVData, 0)
-			//for nowVersion < nextVersion {
-			//} // for
-			//	out <- &VersionData{DeltaFor: fromVersion, Version: nextVersion, VersionData: existingKeys}
-			//	log.Infof("Sent version update %d -> %d %d pairs", fromVersion, nextVersion, len(existingKeys))
-			//} else {
-			//	log.Infof("No changes in version %d", nextVersion)
-			//}
-
-			chdone <- nextVersion
-
-			return nil
-		} // function
-
-		//
-		//		--- exec end --
-		//
-
-		doLoop := true
-		for doLoop {
-			ok := false
-			select {
-			case sT := <-start:
-				checkStart = true
-				log.Debugf("DB %d receive mark %s", db, sT)
-				break
-			case fromVersion, ok = <-chdone:
-				if ok {
-					log.Debugf("Shifting db %d current version to %d", db, fromVersion)
-				} else {
-					log.Debugf("Delta db %d failed", db)
-				}
-				doLoop = false
-
-			}
-		} // Wait completed
-
-	} // for
-
+	KeyUpdatePublisher
 }
 
 func retriveKeys(existingKeyIndexes map[string]int, existingKeys []PKVData, keys []string,

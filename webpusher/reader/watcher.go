@@ -13,11 +13,12 @@ import (
 // Factory is a function to create new connections.
 type RedisOperation func(redis.Conn) error
 
+/*
 type RedisUpdates struct {
 	keys []string
 	//ops  []byte
 }
-
+*/
 var ExecutorGo chan RedisOperation
 
 const RedisExchangeKey = "version"
@@ -94,6 +95,7 @@ func pollLoop(addr string, wg *sync.WaitGroup, dbselect []int, dbtype map[int]st
 					processors[s] = proc
 				}
 			} else {
+				chanDB := listeners[db]
 				proc := func(b []byte) {
 					s := string(b)
 					log.Debugf("Sending note %s to %s ", s, dbid)
@@ -161,7 +163,7 @@ func RedisSubscriber(URL string, dbs []int, dbtype map[int]string, listeners []c
 	}
 }
 
-func KeyUpdatePublisher(db int, listener <-chan RedisUpdates, out chan<- []PKVData) {
+func KeyUpdatePublisher(db int, listener <-chan []string, out chan<- []PKVData) {
 
 	defer panic("Subscriber crashed")
 	rate := time.Second * 10
@@ -175,7 +177,7 @@ func KeyUpdatePublisher(db int, listener <-chan RedisUpdates, out chan<- []PKVDa
 			defer wg.Done()
 			defer log.Infof("Exiting scan function in db %d. Wait group notification.", db)
 			//}
-			keys := v.keys
+			keys := v
 
 			_, err := conn.Do("SELECT", db)
 			if err != nil {
