@@ -37,8 +37,8 @@ func initTTLCache() {
 	cache.SetTTL(time.Duration(90 * time.Second))
 	cache.SetExpirationCallback(expirationCallback)
 
-	cache.Set("key", "value")
-	cache.SetWithTTL("keyWithTTL", "value", 10*time.Second)
+	//	cache.Set("key", "value")
+	//	cache.SetWithTTL("keyWithTTL", "value", 10*time.Second)
 
 	//	value, exists := cache.Get("key")
 	//	count := cache.Count()

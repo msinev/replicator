@@ -22,8 +22,6 @@ var ExecutorGo chan RedisOperation
 
 const RedisExchangeKey = "version"
 
-var events = []string{"set", "del", "expire"}
-
 //var ExecuteLoadRequest chan bool
 
 func mapDBSubscribe(v int) []string {

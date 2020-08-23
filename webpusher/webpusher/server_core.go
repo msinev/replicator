@@ -268,6 +268,17 @@ func InitReaders(so []reader.ServerOptions) ([]ScanReader, []reader.DeltaReceive
 	log.Info("Init readers")
 
 	//go ReadVersionDelta(start  <-chan string, out chan <- VersionData, db int )
+	/*
+	lPlainDB:=len(DBSPlain)
+	if lPlainDB>0 {
+		reader.SubscriberChannelsSize(lPlainDB)
+		Topics := make([]string, 0, ldbs)
+		for db, _:= range DBSPlain {
+			Topics=reader.Chan_db_list(db, Topics)
+			}
+		log.Info("Topics:", Topics)
+		}
+	*/
 
 	for r := range DBDeltaReaders {
 		db := DBS[r]
@@ -284,6 +295,7 @@ func InitReaders(so []reader.ServerOptions) ([]ScanReader, []reader.DeltaReceive
 			//log.Panic("No version in DB "+strconv.Itoa(db)) // shall we panic ??
 			// TODO fix subscription on plain DBs or missing versions
 			DBDeltaReaders[r].InitPlain(so[r], dbt, redisURL)
+			go Retriver!!
 			dbt = 1
 		} else {
 			DBDeltaReaders[r].Init(so[r], dbt, ver)
