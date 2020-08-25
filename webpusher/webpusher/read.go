@@ -59,18 +59,23 @@ type WebClient struct {
 	Stats ClientStats
 }
 
-func (client *WebClient) drainSplitter() {
+func (client *WebClient) DrainProcess() {
 	ldrains := len(client.Drains)
 	crq := make(chan *reader.VersionData, ldrains)
 	for rq := range client.ProcessAPI {
-
-		sendVersionSnapshot(client, rq, crq)
+		sendNext(client, rq, crq)
 	}
+}
+
+func (client *WebClient) Done() {
+	defer close(client.Alive)
+	defer close(client.ProcessAPI)
 }
 
 func (client *WebClient) Init() {
 	client.Alive = make(chan int)
 	client.Drains = make([]chan *DrainRequest, len(client.Databases))
+	go client.DrainProcess()
 
 	for rk, rv := range client.Databases {
 		//	if (DBSPlain[rv] == "+") {

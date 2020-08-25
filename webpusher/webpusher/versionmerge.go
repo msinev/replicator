@@ -96,7 +96,7 @@ func writeJSONKV(vdata *reader.VersionData, wrt *jsonjackson.JSONWriter) {
 	}
 }
 
-func sendVersionSnapshot(client *WebClient, rq *SyncRequest, crq chan *reader.VersionData) {
+func sendNext(client *WebClient, rq *SyncRequest, crq chan *reader.VersionData) {
 	/*	if vdata.Version <= isent {
 			return nil, isent
 		}
