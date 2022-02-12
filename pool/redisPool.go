@@ -34,7 +34,7 @@ func GetEnvDefault(env string, def string) string {
 
 var redisFuseThrottle = time.Tick(time.Second * 2)
 
-func RedisExecutor(URL string) {
+func RedisExecutor(URL string, runEexcutor chan RedisOperation) {
 	defer panic("Executor crashed") // TODO: Remove before flight! Only for DEBUG !!!
 	<-redisFuseThrottle
 	c, err := redis.Dial("tcp", URL)
@@ -49,16 +49,16 @@ func RedisExecutor(URL string) {
 	defer c.Close()
 
 	for {
-		foo, ok := <-ExecutorGo
+		foo, ok := <-runEexcutor
 		if !ok {
-			log.Println("Channel closed")
+			log.Println("Redis executor channel closed. Terminating executor")
 			return
 		}
 
 		err = foo(c)
 		if err != nil {
 			log.Fatal(err)
-			go RedisExecutor(URL)
+			go RedisExecutor(URL, runEexcutor)
 			log.Println(err)
 			return
 		}

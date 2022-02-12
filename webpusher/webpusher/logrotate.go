@@ -115,13 +115,6 @@ func logRotate() {
 
 	}
 
-	//f2, err := ioutil.TempFile(usr.HomeDir, "server.severe.log")
-
-	//if(err!=nil) {
-	//	println("Unable to open log file")
-	//}
-	//w := bufio.NewWriter(f)
-
 	backendErr := logging.NewLogBackend(eLogFile, "", 0)
 	backendStd := logging.NewLogBackend(sLogFile, "", 0)
 
